@@ -7,6 +7,7 @@ import {
   JwtPayload,
 } from "../../auth/jwt";
 import { getEnv } from "../../config/env";
+import { logger } from "../../utils/logger";
 import {
   sendEmail,
   verificationEmailHtml,
@@ -279,8 +280,12 @@ export class AuthService {
     }
 
     const rawToken = await this.passwordResetRepo.create(user.id);
-    const { FRONTEND_URL } = getEnv();
+    const { FRONTEND_URL, NODE_ENV } = getEnv();
     const resetUrl = `${FRONTEND_URL}/reset-password?token=${rawToken}`;
+
+    if (NODE_ENV === "development") {
+      logger.info({ token: rawToken }, "🔑 [DEV] Password reset token");
+    }
 
     await sendEmail(
       user.email,
@@ -404,8 +409,12 @@ export class AuthService {
     name: string,
   ): Promise<void> {
     const rawToken = await this.emailVerificationRepo.create(userId);
-    const { FRONTEND_URL } = getEnv();
+    const { FRONTEND_URL, NODE_ENV } = getEnv();
     const verifyUrl = `${FRONTEND_URL}/verify-email?token=${rawToken}`;
+
+    if (NODE_ENV === "development") {
+      logger.info({ token: rawToken }, "📧 [DEV] Email verification token");
+    }
 
     await sendEmail(
       email,

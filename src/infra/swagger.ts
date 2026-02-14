@@ -1,124 +1,125 @@
-// src/infra/swagger.ts
-import swaggerJsdoc from "swagger-jsdoc";
+import {
+  OpenAPIRegistry,
+  OpenApiGeneratorV3,
+} from "@asteasolutions/zod-to-openapi";
+import { z } from "zod";
 import swaggerUi from "swagger-ui-express";
 import { Express } from "express";
 import { getEnv } from "../config/env";
+import { authRegistry } from "../modules/auth/auth.docs";
+import { courseRegistry } from "../modules/courses/course.docs";
 
-const options: swaggerJsdoc.Options = {
-  definition: {
-    openapi: "3.0.0",
-    info: {
-      title: "AI Classroom API",
-      version: "1.0.0",
-      description: "Backend API for AI Classroom application",
-      contact: {
-        name: "Aditya Latta",
-      },
-    },
-    servers: [
-      {
-        url: "/api",
-        description: "API base path",
-      },
-    ],
-    components: {
-      securitySchemes: {
-        BearerAuth: {
-          type: "http",
-          scheme: "bearer",
-          bearerFormat: "JWT",
-          description: "Enter your JWT access token",
-        },
-      },
-      schemas: {
-        Error: {
-          type: "object",
-          properties: {
-            error: { type: "string" },
-            requestId: { type: "string", format: "uuid" },
-          },
-        },
-        ValidationError: {
-          type: "object",
-          properties: {
-            error: { type: "string", example: "Validation failed" },
-            details: {
-              type: "array",
-              items: {
-                type: "object",
-                properties: {
-                  field: { type: "string" },
-                  message: { type: "string" },
-                },
-              },
-            },
-          },
-        },
-        PaginationMeta: {
-          type: "object",
-          properties: {
-            total: { type: "integer", description: "Total number of items" },
-            limit: { type: "integer", description: "Items per page" },
-            offset: { type: "integer", description: "Current offset" },
-            hasMore: {
-              type: "boolean",
-              description: "Whether more items exist",
-            },
-          },
-        },
-        User: {
-          type: "object",
-          properties: {
-            id: { type: "string", format: "uuid" },
-            email: { type: "string", format: "email" },
-            name: { type: "string" },
-            role: { type: "string", enum: ["STUDENT", "INSTRUCTOR", "ADMIN"] },
-            createdAt: { type: "string", format: "date-time" },
-          },
-        },
-        Course: {
-          type: "object",
-          properties: {
-            id: { type: "string", format: "uuid" },
-            title: { type: "string" },
-            description: { type: "string" },
-            instructorId: { type: "string", format: "uuid" },
-            createdAt: { type: "string", format: "date-time" },
-          },
-        },
-        AuthTokens: {
-          type: "object",
-          properties: {
-            accessToken: { type: "string" },
-            refreshToken: { type: "string" },
-            expiresIn: {
-              type: "integer",
-              description: "Access token expiry in seconds",
-            },
-            user: { $ref: "#/components/schemas/User" },
-          },
-        },
-        Session: {
-          type: "object",
-          properties: {
-            id: { type: "string", format: "uuid" },
-            deviceInfo: { type: "string", nullable: true },
-            ipAddress: { type: "string", nullable: true },
-            createdAt: { type: "string", format: "date-time" },
-            lastUsedAt: { type: "string", format: "date-time", nullable: true },
-          },
-        },
-      },
-    },
-  },
-  apis: ["./src/modules/**/*.routes.ts", "./src/docs/*.yaml"],
-};
+// --- Shared response schemas ---
+
+const ErrorSchema = z
+  .object({
+    error: z.string(),
+    requestId: z.string().uuid(),
+  })
+  .openapi("Error");
+
+const ValidationErrorSchema = z
+  .object({
+    error: z.string().openapi({ example: "Validation failed" }),
+    details: z.array(
+      z.object({
+        field: z.string(),
+        message: z.string(),
+      }),
+    ),
+  })
+  .openapi("ValidationError");
+
+const PaginationMetaSchema = z
+  .object({
+    total: z.number().int().openapi({ description: "Total number of items" }),
+    limit: z.number().int().openapi({ description: "Items per page" }),
+    offset: z.number().int().openapi({ description: "Current offset" }),
+    hasMore: z.boolean().openapi({ description: "Whether more items exist" }),
+  })
+  .openapi("PaginationMeta");
+
+const UserSchema = z
+  .object({
+    id: z.string().uuid(),
+    email: z.string().email(),
+    name: z.string(),
+    role: z.enum(["STUDENT", "INSTRUCTOR", "ADMIN"]),
+    createdAt: z.string().datetime(),
+  })
+  .openapi("User");
+
+const CourseSchema = z
+  .object({
+    id: z.string().uuid(),
+    title: z.string(),
+    description: z.string(),
+    instructorId: z.string().uuid(),
+    createdAt: z.string().datetime(),
+  })
+  .openapi("Course");
+
+const AuthTokensSchema = z
+  .object({
+    accessToken: z.string(),
+    refreshToken: z.string(),
+    expiresIn: z.number().int().openapi({ description: "Access token expiry in seconds" }),
+    user: UserSchema,
+  })
+  .openapi("AuthTokens");
+
+const SessionSchema = z
+  .object({
+    id: z.string().uuid(),
+    deviceInfo: z.string().nullable(),
+    ipAddress: z.string().nullable(),
+    createdAt: z.string().datetime(),
+    lastUsedAt: z.string().datetime().nullable(),
+  })
+  .openapi("Session");
+
+// --- Build merged registry ---
+
+const registry = new OpenAPIRegistry([authRegistry, courseRegistry]);
+
+// Register shared schemas so they appear in components/schemas
+registry.register("Error", ErrorSchema);
+registry.register("ValidationError", ValidationErrorSchema);
+registry.register("PaginationMeta", PaginationMetaSchema);
+registry.register("User", UserSchema);
+registry.register("Course", CourseSchema);
+registry.register("AuthTokens", AuthTokensSchema);
+registry.register("Session", SessionSchema);
+
+// --- Generate spec ---
 
 let swaggerSpec: object | null = null;
 
 function getSwaggerSpec(): object {
   if (!swaggerSpec) {
-    swaggerSpec = swaggerJsdoc(options);
+    const generator = new OpenApiGeneratorV3(registry.definitions);
+    swaggerSpec = generator.generateDocument({
+      openapi: "3.0.0",
+      info: {
+        title: "AI Classroom API",
+        version: "1.0.0",
+        description: "Backend API for AI Classroom application",
+        contact: { name: "Aditya Latta" },
+      },
+      servers: [{ url: "/api", description: "API base path" }],
+      security: [],
+    });
+
+    // Inject security schemes (generator doesn't have a built-in option for this)
+    (swaggerSpec as any).components = (swaggerSpec as any).components || {};
+    (swaggerSpec as any).components.securitySchemes = {
+      BearerAuth: {
+        type: "http",
+        scheme: "bearer",
+        bearerFormat: "JWT",
+        description: "Enter your JWT access token",
+      },
+    };
   }
   return swaggerSpec;
 }
