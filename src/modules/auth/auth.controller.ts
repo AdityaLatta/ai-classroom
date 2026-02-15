@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
-import { AuthService, AuthTokens } from "./auth.service";
+import { AuthService } from "./auth.service";
+import { AuthTokens } from "./auth.types";
 import { AppError } from "../../utils/AppError";
 import { AppResponse } from "../../utils/AppResponse";
 import { ErrorCode } from "../../utils/errorCodes";

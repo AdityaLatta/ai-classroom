@@ -22,50 +22,18 @@ import { IUserRepository, User } from "../users/user.repository";
 import { IRefreshTokenRepository } from "./refreshToken.repository";
 import { IEmailVerificationRepository } from "./emailVerification.repository";
 import { IPasswordResetRepository } from "./passwordReset.repository";
+import {
+  AuthTokens,
+  LoginWithGoogleDTO,
+  RefreshTokenDTO,
+  RegisterDTO,
+  LoginDTO,
+  ChangePasswordDTO,
+} from "./auth.types";
+
+export type { AuthTokens };
 
 const BCRYPT_ROUNDS = 12;
-
-export interface AuthTokens {
-  accessToken: string;
-  refreshToken: string;
-  expiresIn: number;
-  user: {
-    id: string;
-    email: string;
-    name: string;
-    role: string;
-  };
-}
-
-export interface LoginWithGoogleDTO {
-  idToken: string;
-  deviceInfo?: string;
-  ipAddress?: string;
-}
-
-export interface RefreshTokenDTO {
-  refreshToken: string;
-  deviceInfo?: string;
-  ipAddress?: string;
-}
-
-export interface RegisterDTO {
-  email: string;
-  password: string;
-  name: string;
-}
-
-export interface LoginDTO {
-  email: string;
-  password: string;
-  deviceInfo?: string;
-  ipAddress?: string;
-}
-
-export interface ChangePasswordDTO {
-  currentPassword: string;
-  newPassword: string;
-}
 
 // In-memory lockout tracker (use Redis in production multi-instance)
 const loginAttempts = new Map<string, { count: number; lockedUntil: number }>();
