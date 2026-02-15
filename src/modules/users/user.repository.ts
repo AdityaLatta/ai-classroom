@@ -3,8 +3,6 @@ import { Pool, PoolClient } from "pg";
 import { getDb } from "../../infra/db";
 import { User, CreateUserDTO, IUserRepository } from "./user.types";
 
-export type { User, CreateUserDTO, IUserRepository };
-
 const userRowSchema = z.object({
   id: z.string(),
   email: z.string(),

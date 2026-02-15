@@ -1,10 +1,5 @@
 import { BaseTokenRepository } from "./baseToken.repository";
-import {
-  EmailVerificationToken,
-  IEmailVerificationRepository,
-} from "./auth.types";
-
-export type { EmailVerificationToken, IEmailVerificationRepository };
+import { IEmailVerificationRepository } from "./auth.types";
 
 export class EmailVerificationRepository
   extends BaseTokenRepository

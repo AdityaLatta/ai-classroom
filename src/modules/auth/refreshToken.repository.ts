@@ -8,8 +8,6 @@ import {
   IRefreshTokenRepository,
 } from "./auth.types";
 
-export type { RefreshToken, CreateRefreshTokenDTO, IRefreshTokenRepository };
-
 const refreshTokenRowSchema = z.object({
   id: z.string(),
   user_id: z.string(),

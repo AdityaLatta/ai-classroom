@@ -31,8 +31,6 @@ import {
   IPasswordResetRepository,
 } from "./auth.types";
 
-export type { AuthTokens };
-
 const BCRYPT_ROUNDS = 12;
 
 // In-memory lockout tracker (use Redis in production multi-instance)

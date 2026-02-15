@@ -5,8 +5,6 @@ import { getDb } from "../../infra/db";
 import { createHashedToken } from "./tokenUtils";
 import { TokenRecord } from "./auth.types";
 
-export type { TokenRecord };
-
 const tokenRowSchema = z.object({
   id: z.string(),
   user_id: z.string(),

@@ -1,10 +1,5 @@
 import { BaseTokenRepository } from "./baseToken.repository";
-import {
-  PasswordResetToken,
-  IPasswordResetRepository,
-} from "./auth.types";
-
-export type { PasswordResetToken, IPasswordResetRepository };
+import { IPasswordResetRepository } from "./auth.types";
 
 export class PasswordResetRepository
   extends BaseTokenRepository
