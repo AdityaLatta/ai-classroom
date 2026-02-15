@@ -13,3 +13,16 @@ export function stripHtml(input: string): string {
 export function escapeLikePattern(input: string): string {
   return input.replace(/[%_\\]/g, "\\$&");
 }
+
+/**
+ * Escape HTML special characters to prevent XSS in rendered HTML.
+ * Used when interpolating user-supplied values into HTML templates.
+ */
+export function escapeHtml(unsafe: string): string {
+  return unsafe
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}

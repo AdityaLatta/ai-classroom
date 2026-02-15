@@ -1,17 +1,9 @@
 import nodemailer, { Transporter } from "nodemailer";
 import { getEnv } from "../config/env";
 import { logger } from "../utils/logger";
+import { escapeHtml } from "../utils/sanitize";
 
 let transporter: Transporter | null = null;
-
-function escapeHtml(unsafe: string): string {
-  return unsafe
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
-}
 
 export function getMailer(): Transporter {
   if (!transporter) {

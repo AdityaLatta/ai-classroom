@@ -1,6 +1,5 @@
 // src/modules/courses/course.service.ts
-import { ICourseRepository } from "./course.repository";
-import { CreateCourseDTO, UpdateCourseDTO, Course, ListCoursesOptions } from "./course.types";
+import { ICourseRepository, CreateCourseDTO, UpdateCourseDTO, Course, ListCoursesOptions } from "./course.types";
 import { AppError } from "../../utils/AppError";
 import { ErrorCode } from "../../utils/errorCodes";
 import { PaginatedResult } from "../../utils/pagination";

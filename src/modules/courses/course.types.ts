@@ -1,4 +1,6 @@
 // src/modules/courses/course.types.ts
+import { PaginatedResult } from "../../utils/pagination";
+
 export interface CreateCourseDTO {
   title: string;
   description: string;
@@ -28,4 +30,12 @@ export interface ListCoursesOptions {
   offset: number;
   cursor?: string;
   filters?: ListCoursesFilters;
+}
+
+export interface ICourseRepository {
+  createCourse(instructorId: string, dto: CreateCourseDTO): Promise<Course>;
+  findById(courseId: string): Promise<Course | null>;
+  findAll(options: ListCoursesOptions): Promise<PaginatedResult<Course>>;
+  update(courseId: string, dto: UpdateCourseDTO): Promise<Course | null>;
+  delete(courseId: string): Promise<boolean>;
 }

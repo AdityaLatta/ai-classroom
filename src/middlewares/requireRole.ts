@@ -1,16 +1,13 @@
 import { Request, Response, NextFunction } from "express";
+import { AppError } from "../utils/AppError";
 import { ErrorCode } from "../utils/errorCodes";
 
 export function requireRole(...allowedRoles: string[]) {
-  return (req: Request, res: Response, next: NextFunction): void => {
+  return (req: Request, _res: Response, next: NextFunction): void => {
     const userRole = req.user?.role;
 
     if (!userRole || !allowedRoles.includes(userRole)) {
-      res.status(403).json({
-        error: "Forbidden",
-        code: ErrorCode.AUTH_FORBIDDEN,
-        requestId: req.requestId,
-      });
+      next(new AppError(403, "Forbidden", ErrorCode.AUTH_FORBIDDEN));
       return;
     }
 

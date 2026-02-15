@@ -1,35 +1,26 @@
 import { Request, Response, NextFunction } from "express";
 import { verifyAccessToken } from "../auth/jwt";
+import { AppError } from "../utils/AppError";
 import { ErrorCode } from "../utils/errorCodes";
 
 export function requireAuth(
   req: Request,
-  res: Response,
+  _res: Response,
   next: NextFunction,
 ): void {
-  const authHeader = req.headers.authorization;
-
-  if (!authHeader || !authHeader.startsWith("Bearer ")) {
-    res.status(401).json({
-      error: "Unauthorized",
-      code: ErrorCode.AUTH_UNAUTHORIZED,
-      requestId: req.requestId,
-    });
-    return;
-  }
-
-  const token = authHeader.split(" ")[1];
-
-  if (!token) {
-    res.status(401).json({
-      error: "Unauthorized",
-      code: ErrorCode.AUTH_UNAUTHORIZED,
-      requestId: req.requestId,
-    });
-    return;
-  }
-
   try {
+    const authHeader = req.headers.authorization;
+
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      throw new AppError(401, "Unauthorized", ErrorCode.AUTH_UNAUTHORIZED);
+    }
+
+    const token = authHeader.split(" ")[1];
+
+    if (!token) {
+      throw new AppError(401, "Unauthorized", ErrorCode.AUTH_UNAUTHORIZED);
+    }
+
     const payload = verifyAccessToken(token);
 
     req.user = {
@@ -39,11 +30,11 @@ export function requireAuth(
     };
 
     next();
-  } catch {
-    res.status(401).json({
-      error: "Invalid or expired token",
-      code: ErrorCode.AUTH_ACCESS_TOKEN_INVALID,
-      requestId: req.requestId,
-    });
+  } catch (error) {
+    if (error instanceof AppError) {
+      next(error);
+      return;
+    }
+    next(new AppError(401, "Invalid or expired token", ErrorCode.AUTH_ACCESS_TOKEN_INVALID));
   }
 }

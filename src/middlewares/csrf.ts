@@ -1,4 +1,6 @@
 import { Request, Response, NextFunction } from "express";
+import { AppError } from "../utils/AppError";
+import { ErrorCode } from "../utils/errorCodes";
 
 const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 
@@ -7,7 +9,7 @@ const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
  * on all state-changing requests. Custom headers trigger a CORS preflight,
  * which blocks cross-origin form submissions from attacker sites.
  */
-export function csrfGuard(req: Request, res: Response, next: NextFunction): void {
+export function csrfGuard(req: Request, _res: Response, next: NextFunction): void {
   if (SAFE_METHODS.has(req.method)) {
     next();
     return;
@@ -18,9 +20,5 @@ export function csrfGuard(req: Request, res: Response, next: NextFunction): void
     return;
   }
 
-  res.status(403).json({
-    error: "Forbidden",
-    message: "Missing X-Requested-With header",
-    requestId: req.requestId,
-  });
+  next(new AppError(403, "Missing X-Requested-With header", ErrorCode.CSRF_HEADER_MISSING));
 }

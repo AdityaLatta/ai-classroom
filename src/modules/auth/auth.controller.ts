@@ -16,28 +16,6 @@ const COOKIE_PATH = "/api/auth";
 // prevents cross-origin requests from including the cookie. All state-changing endpoints
 // also require a valid Bearer token in the Authorization header, providing double protection.
 
-function setRefreshTokenCookie(res: Response, refreshToken: string): void {
-  const { COOKIE_SECURE, COOKIE_DOMAIN, NODE_ENV } = getEnv();
-  res.cookie(REFRESH_TOKEN_COOKIE, refreshToken, {
-    httpOnly: true,
-    secure: COOKIE_SECURE || NODE_ENV === "production",
-    sameSite: "strict",
-    maxAge: REFRESH_TOKEN_EXPIRY_DAYS * 24 * 60 * 60 * 1000,
-    path: COOKIE_PATH,
-    ...(COOKIE_DOMAIN ? { domain: COOKIE_DOMAIN } : {}),
-  });
-}
-
-function clearRefreshTokenCookie(res: Response): void {
-  res.clearCookie(REFRESH_TOKEN_COOKIE, { path: COOKIE_PATH });
-}
-
-function sendAuthResponse(res: Response, result: AuthTokens): void {
-  setRefreshTokenCookie(res, result.refreshToken);
-  // Also include refreshToken in body for clients that can't use cookies (mobile apps)
-  AppResponse.ok(res, result);
-}
-
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
@@ -52,7 +30,7 @@ export class AuthController {
       ipAddress,
     });
 
-    sendAuthResponse(res, result);
+    this.sendAuthResponse(res, result);
   });
 
   refreshToken = asyncHandler(async (req: Request, res: Response) => {
@@ -72,7 +50,7 @@ export class AuthController {
       ipAddress,
     });
 
-    sendAuthResponse(res, result);
+    this.sendAuthResponse(res, result);
   });
 
   logout = asyncHandler(async (req: Request, res: Response) => {
@@ -84,7 +62,7 @@ export class AuthController {
     }
 
     await this.authService.logout(refreshToken);
-    clearRefreshTokenCookie(res);
+    this.clearRefreshTokenCookie(res);
 
     AppResponse.message(res, "Logged out successfully");
   });
@@ -93,7 +71,7 @@ export class AuthController {
     const userId = req.user!.id;
 
     await this.authService.logoutAll(userId);
-    clearRefreshTokenCookie(res);
+    this.clearRefreshTokenCookie(res);
 
     AppResponse.message(res, "Logged out from all devices");
   });
@@ -162,7 +140,7 @@ export class AuthController {
       deviceInfo,
       ipAddress,
     });
-    sendAuthResponse(res, result);
+    this.sendAuthResponse(res, result);
   });
 
   verifyEmail = asyncHandler(async (req: Request, res: Response) => {
@@ -203,7 +181,31 @@ export class AuthController {
       currentPassword,
       newPassword,
     });
-    clearRefreshTokenCookie(res);
+    this.clearRefreshTokenCookie(res);
     AppResponse.message(res, result.message);
   });
+
+  // --- Private helpers ---
+
+  private setRefreshTokenCookie(res: Response, refreshToken: string): void {
+    const { COOKIE_SECURE, COOKIE_DOMAIN, NODE_ENV } = getEnv();
+    res.cookie(REFRESH_TOKEN_COOKIE, refreshToken, {
+      httpOnly: true,
+      secure: COOKIE_SECURE || NODE_ENV === "production",
+      sameSite: "strict",
+      maxAge: REFRESH_TOKEN_EXPIRY_DAYS * 24 * 60 * 60 * 1000,
+      path: COOKIE_PATH,
+      ...(COOKIE_DOMAIN ? { domain: COOKIE_DOMAIN } : {}),
+    });
+  }
+
+  private clearRefreshTokenCookie(res: Response): void {
+    res.clearCookie(REFRESH_TOKEN_COOKIE, { path: COOKIE_PATH });
+  }
+
+  private sendAuthResponse(res: Response, result: AuthTokens): void {
+    this.setRefreshTokenCookie(res, result.refreshToken);
+    // Also include refreshToken in body for clients that can't use cookies (mobile apps)
+    AppResponse.ok(res, result);
+  }
 }

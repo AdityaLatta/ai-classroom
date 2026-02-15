@@ -30,36 +30,9 @@ import {
   IEmailVerificationRepository,
   IPasswordResetRepository,
 } from "./auth.types";
+import { LoginAttemptTracker } from "./loginAttemptTracker";
 
 const BCRYPT_ROUNDS = 12;
-
-// In-memory lockout tracker (use Redis in production multi-instance)
-const loginAttempts = new Map<string, { count: number; lockedUntil: number }>();
-
-const LOGIN_ATTEMPTS_CLEANUP_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
-
-let loginAttemptsCleanupTimer: ReturnType<typeof setInterval> | null = null;
-
-function evictExpiredLoginAttempts(): void {
-  const now = Date.now();
-  for (const [email, entry] of loginAttempts) {
-    if (entry.lockedUntil > 0 && entry.lockedUntil <= now) {
-      loginAttempts.delete(email);
-    }
-  }
-}
-
-export function startLoginAttemptsCleanup(): void {
-  loginAttemptsCleanupTimer = setInterval(evictExpiredLoginAttempts, LOGIN_ATTEMPTS_CLEANUP_INTERVAL_MS);
-  loginAttemptsCleanupTimer.unref();
-}
-
-export function stopLoginAttemptsCleanup(): void {
-  if (loginAttemptsCleanupTimer) {
-    clearInterval(loginAttemptsCleanupTimer);
-    loginAttemptsCleanupTimer = null;
-  }
-}
 
 export class AuthService {
   constructor(
@@ -67,6 +40,7 @@ export class AuthService {
     private readonly refreshTokenRepo: IRefreshTokenRepository,
     private readonly emailVerificationRepo: IEmailVerificationRepository,
     private readonly passwordResetRepo: IPasswordResetRepository,
+    private readonly loginAttemptTracker: LoginAttemptTracker,
   ) {}
 
   async loginWithGoogle(dto: LoginWithGoogleDTO): Promise<AuthTokens> {
@@ -208,12 +182,12 @@ export class AuthService {
    * Login with email and password (with account lockout).
    */
   async login(dto: LoginDTO): Promise<AuthTokens> {
-    this.checkAccountLockout(dto.email);
+    this.loginAttemptTracker.check(dto.email);
 
     const user = await this.userRepo.findByEmail(dto.email);
 
     if (!user || !user.passwordHash) {
-      this.recordFailedLogin(dto.email, dto.ipAddress);
+      this.loginAttemptTracker.recordFailure(dto.email, dto.ipAddress);
       throw new AppError(401, "Invalid email or password", ErrorCode.AUTH_INVALID_CREDENTIALS);
     }
 
@@ -222,7 +196,7 @@ export class AuthService {
       user.passwordHash,
     );
     if (!isPasswordValid) {
-      this.recordFailedLogin(dto.email, dto.ipAddress);
+      this.loginAttemptTracker.recordFailure(dto.email, dto.ipAddress);
       throw new AppError(401, "Invalid email or password", ErrorCode.AUTH_INVALID_CREDENTIALS);
     }
 
@@ -235,7 +209,7 @@ export class AuthService {
     }
 
     // Clear lockout on successful login
-    loginAttempts.delete(dto.email);
+    this.loginAttemptTracker.clear(dto.email);
 
     audit({
       action: "USER_LOGIN",
@@ -475,56 +449,4 @@ export class AuthService {
     );
   }
 
-  private checkAccountLockout(email: string): void {
-    const entry = loginAttempts.get(email);
-    if (!entry) return;
-
-    if (entry.lockedUntil > Date.now()) {
-      const minutesLeft = Math.ceil((entry.lockedUntil - Date.now()) / 60000);
-      audit({ action: "ACCOUNT_LOCKED", email, metadata: { minutesLeft } });
-      throw new AppError(
-        429,
-        `Account temporarily locked. Try again in ${minutesLeft} minute(s).`,
-        ErrorCode.AUTH_ACCOUNT_LOCKED,
-      );
-    }
-
-    // Lock expired, clear it
-    if (entry.lockedUntil <= Date.now()) {
-      loginAttempts.delete(email);
-    }
-  }
-
-  private recordFailedLogin(email: string, ip?: string): void {
-    const { LOGIN_MAX_ATTEMPTS, LOGIN_LOCKOUT_MINUTES } = getEnv();
-    const entry = loginAttempts.get(email) || { count: 0, lockedUntil: 0 };
-    entry.count++;
-
-    if (entry.count >= LOGIN_MAX_ATTEMPTS) {
-      entry.lockedUntil = Date.now() + LOGIN_LOCKOUT_MINUTES * 60 * 1000;
-      loginAttempts.set(email, entry);
-
-      audit({
-        action: "ACCOUNT_LOCKED",
-        email,
-        ip,
-        metadata: { attempts: entry.count, lockoutMinutes: LOGIN_LOCKOUT_MINUTES },
-      });
-
-      logger.warn(
-        { email, attempts: entry.count },
-        "Account locked due to failed login attempts",
-      );
-      return;
-    }
-
-    loginAttempts.set(email, entry);
-
-    audit({
-      action: "USER_LOGIN_FAILED",
-      email,
-      ip,
-      metadata: { attemptNumber: entry.count },
-    });
-  }
 }

@@ -14,23 +14,32 @@ jest.mock("../../utils/logger", () => ({
   },
 }));
 
-import { startTokenCleanup, stopTokenCleanup } from "../tokenCleanup";
+import { TokenCleanupJob } from "../tokenCleanup";
 
-describe("tokenCleanup", () => {
+describe("TokenCleanupJob", () => {
+  let job: TokenCleanupJob;
+  const mockRefreshRepo = { deleteExpired: jest.fn().mockResolvedValue(0) };
+  const mockEmailRepo = { deleteExpired: jest.fn().mockResolvedValue(0) };
+  const mockResetRepo = { deleteExpired: jest.fn().mockResolvedValue(0) };
+
   beforeEach(() => {
     jest.useFakeTimers();
     mockQuery.mockReset();
+    mockRefreshRepo.deleteExpired.mockReset().mockResolvedValue(0);
+    mockEmailRepo.deleteExpired.mockReset().mockResolvedValue(0);
+    mockResetRepo.deleteExpired.mockReset().mockResolvedValue(0);
     // Default: advisory lock acquired, delete returns 0 rows
     mockQuery.mockResolvedValue({ rows: [{ acquired: true }], rowCount: 0 });
+    job = new TokenCleanupJob(mockRefreshRepo, mockEmailRepo, mockResetRepo);
   });
 
   afterEach(() => {
-    stopTokenCleanup();
+    job.stop();
     jest.useRealTimers();
   });
 
   it("should acquire advisory lock before cleaning", async () => {
-    startTokenCleanup();
+    job.start();
 
     // Flush the initial async call (one tick)
     await Promise.resolve();
@@ -44,7 +53,7 @@ describe("tokenCleanup", () => {
   });
 
   it("should release advisory lock after cleaning", async () => {
-    startTokenCleanup();
+    job.start();
     // Flush all microtasks
     for (let i = 0; i < 20; i++) await Promise.resolve();
 
@@ -57,20 +66,19 @@ describe("tokenCleanup", () => {
   it("should skip cleanup when lock is not acquired", async () => {
     mockQuery.mockResolvedValueOnce({ rows: [{ acquired: false }], rowCount: 0 });
 
-    startTokenCleanup();
+    job.start();
     for (let i = 0; i < 20; i++) await Promise.resolve();
 
-    // Should only have the lock attempt call, no DELETE calls
-    const deleteCalls = mockQuery.mock.calls.filter(
-      (call) => typeof call[0] === "string" && call[0].includes("DELETE"),
-    );
-    expect(deleteCalls).toHaveLength(0);
+    // Should not have called deleteExpired on any repo
+    expect(mockRefreshRepo.deleteExpired).not.toHaveBeenCalled();
+    expect(mockEmailRepo.deleteExpired).not.toHaveBeenCalled();
+    expect(mockResetRepo.deleteExpired).not.toHaveBeenCalled();
   });
 
   it("should handle errors gracefully", async () => {
     mockQuery.mockRejectedValueOnce(new Error("DB connection failed"));
 
-    startTokenCleanup();
+    job.start();
     for (let i = 0; i < 20; i++) await Promise.resolve();
 
     // Should not throw
@@ -78,9 +86,9 @@ describe("tokenCleanup", () => {
     expect(logger.error).toHaveBeenCalled();
   });
 
-  it("should stop cleanup when stopTokenCleanup is called", () => {
-    startTokenCleanup();
-    stopTokenCleanup();
+  it("should stop cleanup when stop is called", () => {
+    job.start();
+    job.stop();
 
     // Advance timer — cleanup should not run again
     mockQuery.mockClear();

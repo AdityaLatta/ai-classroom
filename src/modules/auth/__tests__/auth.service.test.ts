@@ -1,4 +1,5 @@
 import { AuthService } from "../auth.service";
+import { LoginAttemptTracker } from "../loginAttemptTracker";
 import { UserRepository } from "../../users/user.repository";
 import { RefreshTokenRepository } from "../refreshToken.repository";
 import { EmailVerificationRepository } from "../emailVerification.repository";
@@ -63,6 +64,7 @@ describe("AuthService", () => {
       mockRefreshTokenRepo,
       mockEmailVerifRepo,
       mockPasswordResetRepo,
+      new LoginAttemptTracker(),
     );
   });
 

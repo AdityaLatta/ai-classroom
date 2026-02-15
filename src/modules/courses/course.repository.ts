@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { getDb } from "../../infra/db";
-import { CreateCourseDTO, UpdateCourseDTO, Course, ListCoursesOptions } from "./course.types";
+import { CreateCourseDTO, UpdateCourseDTO, Course, ListCoursesOptions, ICourseRepository } from "./course.types";
 import { PaginatedResult } from "../../utils/pagination";
 import { escapeLikePattern } from "../../utils/sanitize";
 
@@ -15,14 +15,6 @@ const courseRowSchema = z.object({
 
 const COURSE_COLUMNS = "id, title, description, instructor_id, created_at, updated_at";
 const MAX_LIMIT = 100;
-
-export interface ICourseRepository {
-  createCourse(instructorId: string, dto: CreateCourseDTO): Promise<Course>;
-  findById(courseId: string): Promise<Course | null>;
-  findAll(options: ListCoursesOptions): Promise<PaginatedResult<Course>>;
-  update(courseId: string, dto: UpdateCourseDTO): Promise<Course | null>;
-  delete(courseId: string): Promise<boolean>;
-}
 
 export class CourseRepository implements ICourseRepository {
   async createCourse(

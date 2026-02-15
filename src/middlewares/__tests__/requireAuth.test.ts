@@ -1,13 +1,12 @@
-import { Request, Response, NextFunction } from "express";
+import { Request, Response } from "express";
 import { requireAuth } from "../requireAuth";
 import { signAccessToken, JwtPayload } from "../../auth/jwt";
+import { AppError } from "../../utils/AppError";
 
 describe("requireAuth middleware", () => {
   let mockRequest: Partial<Request>;
   let mockResponse: Partial<Response>;
-  let mockNext: NextFunction;
-  let jsonMock: jest.Mock;
-  let statusMock: jest.Mock;
+  let mockNext: jest.Mock;
 
   const validPayload: JwtPayload = {
     sub: "user-123",
@@ -16,50 +15,44 @@ describe("requireAuth middleware", () => {
   };
 
   beforeEach(() => {
-    jsonMock = jest.fn();
-    statusMock = jest.fn().mockReturnValue({ json: jsonMock });
     mockRequest = {
       headers: {},
     };
-    mockResponse = {
-      status: statusMock,
-      json: jsonMock,
-    };
+    mockResponse = {};
     mockNext = jest.fn();
   });
 
-  it("should return 401 if no authorization header", () => {
+  it("should call next with AppError(401) if no authorization header", () => {
     requireAuth(mockRequest as Request, mockResponse as Response, mockNext);
 
-    expect(statusMock).toHaveBeenCalledWith(401);
-    expect(jsonMock).toHaveBeenCalledWith(
-      expect.objectContaining({ error: "Unauthorized", code: "AUTH_UNAUTHORIZED" }),
-    );
-    expect(mockNext).not.toHaveBeenCalled();
+    expect(mockNext).toHaveBeenCalledWith(expect.any(AppError));
+    const error = mockNext.mock.calls[0][0] as AppError;
+    expect(error.statusCode).toBe(401);
+    expect(error.message).toBe("Unauthorized");
+    expect(error.code).toBe("AUTH_UNAUTHORIZED");
   });
 
-  it("should return 401 if authorization header does not start with Bearer", () => {
+  it("should call next with AppError(401) if authorization header does not start with Bearer", () => {
     mockRequest.headers = { authorization: "Basic token123" };
 
     requireAuth(mockRequest as Request, mockResponse as Response, mockNext);
 
-    expect(statusMock).toHaveBeenCalledWith(401);
-    expect(jsonMock).toHaveBeenCalledWith(
-      expect.objectContaining({ error: "Unauthorized", code: "AUTH_UNAUTHORIZED" }),
-    );
-    expect(mockNext).not.toHaveBeenCalled();
+    expect(mockNext).toHaveBeenCalledWith(expect.any(AppError));
+    const error = mockNext.mock.calls[0][0] as AppError;
+    expect(error.statusCode).toBe(401);
+    expect(error.code).toBe("AUTH_UNAUTHORIZED");
   });
 
-  it("should return 401 for invalid token", () => {
+  it("should call next with AppError(401) for invalid token", () => {
     mockRequest.headers = { authorization: "Bearer invalid-token" };
 
     requireAuth(mockRequest as Request, mockResponse as Response, mockNext);
 
-    expect(statusMock).toHaveBeenCalledWith(401);
-    expect(jsonMock).toHaveBeenCalledWith(
-      expect.objectContaining({ error: "Invalid or expired token", code: "AUTH_ACCESS_TOKEN_INVALID" }),
-    );
-    expect(mockNext).not.toHaveBeenCalled();
+    expect(mockNext).toHaveBeenCalledWith(expect.any(AppError));
+    const error = mockNext.mock.calls[0][0] as AppError;
+    expect(error.statusCode).toBe(401);
+    expect(error.message).toBe("Invalid or expired token");
+    expect(error.code).toBe("AUTH_ACCESS_TOKEN_INVALID");
   });
 
   it("should call next() and attach user for valid token", () => {
@@ -68,8 +61,7 @@ describe("requireAuth middleware", () => {
 
     requireAuth(mockRequest as Request, mockResponse as Response, mockNext);
 
-    expect(mockNext).toHaveBeenCalled();
-    expect(statusMock).not.toHaveBeenCalled();
+    expect(mockNext).toHaveBeenCalledWith();
     expect(mockRequest.user).toEqual({
       id: validPayload.sub,
       role: validPayload.role,
@@ -99,10 +91,11 @@ describe("requireAuth middleware", () => {
     const token = signAccessToken(validPayload);
     mockRequest.headers = { authorization: `Bearer  ${token}` };
 
-    // This should fail because of extra space
+    // Extra space means token starts with space, which is invalid
     requireAuth(mockRequest as Request, mockResponse as Response, mockNext);
 
-    // Extra space means token starts with space, which is invalid
-    expect(statusMock).toHaveBeenCalledWith(401);
+    expect(mockNext).toHaveBeenCalledWith(expect.any(AppError));
+    const error = mockNext.mock.calls[0][0] as AppError;
+    expect(error.statusCode).toBe(401);
   });
 });
