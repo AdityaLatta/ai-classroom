@@ -1,6 +1,6 @@
-// src/middlewares/requireAuth.ts
 import { Request, Response, NextFunction } from "express";
 import { verifyAccessToken } from "../auth/jwt";
+import { ErrorCode } from "../utils/errorCodes";
 
 export function requireAuth(
   req: Request,
@@ -10,11 +10,24 @@ export function requireAuth(
   const authHeader = req.headers.authorization;
 
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
-    res.status(401).json({ error: "Unauthorized" });
+    res.status(401).json({
+      error: "Unauthorized",
+      code: ErrorCode.AUTH_UNAUTHORIZED,
+      requestId: req.requestId,
+    });
     return;
   }
 
   const token = authHeader.split(" ")[1];
+
+  if (!token) {
+    res.status(401).json({
+      error: "Unauthorized",
+      code: ErrorCode.AUTH_UNAUTHORIZED,
+      requestId: req.requestId,
+    });
+    return;
+  }
 
   try {
     const payload = verifyAccessToken(token);
@@ -27,6 +40,10 @@ export function requireAuth(
 
     next();
   } catch {
-    res.status(401).json({ error: "Invalid or expired token" });
+    res.status(401).json({
+      error: "Invalid or expired token",
+      code: ErrorCode.AUTH_ACCESS_TOKEN_INVALID,
+      requestId: req.requestId,
+    });
   }
 }

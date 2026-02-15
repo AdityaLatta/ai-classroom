@@ -106,14 +106,15 @@ describe("Auth API - Email/Password", () => {
 
       const response = await request(app)
         .post("/api/auth/register")
+        .set("X-Requested-With", "XMLHttpRequest")
         .send(validBody);
 
       expect(response.status).toBe(201);
-      expect(response.body.message).toContain("Registration successful");
+      expect(response.body.message).toContain("verification email has been sent");
       expect(sendEmail).toHaveBeenCalled();
     });
 
-    it("should return 409 if email already exists", async () => {
+    it("should return 201 with generic message if email already exists (anti-enumeration)", async () => {
       mockQuery.mockResolvedValueOnce({
         rows: [mockUserRow],
         rowCount: 1,
@@ -121,15 +122,18 @@ describe("Auth API - Email/Password", () => {
 
       const response = await request(app)
         .post("/api/auth/register")
+        .set("X-Requested-With", "XMLHttpRequest")
         .send(validBody);
 
-      expect(response.status).toBe(409);
-      expect(response.body.error).toContain("already exists");
+      // Returns same status and message as success to prevent user enumeration
+      expect(response.status).toBe(201);
+      expect(response.body.message).toContain("verification email has been sent");
     });
 
     it("should return 400 for invalid email", async () => {
       const response = await request(app)
         .post("/api/auth/register")
+        .set("X-Requested-With", "XMLHttpRequest")
         .send({ email: "not-an-email", password: "Password123", name: "Test" });
 
       expect(response.status).toBe(400);
@@ -139,6 +143,7 @@ describe("Auth API - Email/Password", () => {
     it("should return 400 for weak password", async () => {
       const response = await request(app)
         .post("/api/auth/register")
+        .set("X-Requested-With", "XMLHttpRequest")
         .send({ email: "test@example.com", password: "short", name: "Test" });
 
       expect(response.status).toBe(400);
@@ -148,6 +153,7 @@ describe("Auth API - Email/Password", () => {
     it("should return 400 for missing name", async () => {
       const response = await request(app)
         .post("/api/auth/register")
+        .set("X-Requested-With", "XMLHttpRequest")
         .send({ email: "test@example.com", password: "Password123" });
 
       expect(response.status).toBe(400);
@@ -157,6 +163,7 @@ describe("Auth API - Email/Password", () => {
     it("should return 400 for password without uppercase", async () => {
       const response = await request(app)
         .post("/api/auth/register")
+        .set("X-Requested-With", "XMLHttpRequest")
         .send({
           email: "test@example.com",
           password: "password123",
@@ -199,12 +206,13 @@ describe("Auth API - Email/Password", () => {
 
       const response = await request(app)
         .post("/api/auth/login")
+        .set("X-Requested-With", "XMLHttpRequest")
         .send({ email: "test@example.com", password: "Password123" });
 
       expect(response.status).toBe(200);
-      expect(response.body.accessToken).toBeDefined();
-      expect(response.body.refreshToken).toBeDefined();
-      expect(response.body.user.email).toBe("test@example.com");
+      expect(response.body.data.accessToken).toBeDefined();
+      expect(response.body.data.refreshToken).toBeDefined();
+      expect(response.body.data.user.email).toBe("test@example.com");
     });
 
     it("should return 401 for non-existent user", async () => {
@@ -212,6 +220,7 @@ describe("Auth API - Email/Password", () => {
 
       const response = await request(app)
         .post("/api/auth/login")
+        .set("X-Requested-With", "XMLHttpRequest")
         .send({ email: "no@user.com", password: "Password123" });
 
       expect(response.status).toBe(401);
@@ -227,6 +236,7 @@ describe("Auth API - Email/Password", () => {
 
       const response = await request(app)
         .post("/api/auth/login")
+        .set("X-Requested-With", "XMLHttpRequest")
         .send({ email: "test@example.com", password: "WrongPassword1" });
 
       expect(response.status).toBe(401);
@@ -241,6 +251,7 @@ describe("Auth API - Email/Password", () => {
 
       const response = await request(app)
         .post("/api/auth/login")
+        .set("X-Requested-With", "XMLHttpRequest")
         .send({ email: "test@example.com", password: "Password123" });
 
       expect(response.status).toBe(403);
@@ -250,6 +261,7 @@ describe("Auth API - Email/Password", () => {
     it("should return 400 for missing password", async () => {
       const response = await request(app)
         .post("/api/auth/login")
+        .set("X-Requested-With", "XMLHttpRequest")
         .send({ email: "test@example.com" });
 
       expect(response.status).toBe(400);
@@ -282,6 +294,7 @@ describe("Auth API - Email/Password", () => {
 
       const response = await request(app)
         .post("/api/auth/verify-email")
+        .set("X-Requested-With", "XMLHttpRequest")
         .send({ token: "a".repeat(64) });
 
       expect(response.status).toBe(200);
@@ -293,6 +306,7 @@ describe("Auth API - Email/Password", () => {
 
       const response = await request(app)
         .post("/api/auth/verify-email")
+        .set("X-Requested-With", "XMLHttpRequest")
         .send({ token: "invalid-token" });
 
       expect(response.status).toBe(400);
@@ -302,6 +316,7 @@ describe("Auth API - Email/Password", () => {
     it("should return 400 for missing token", async () => {
       const response = await request(app)
         .post("/api/auth/verify-email")
+        .set("X-Requested-With", "XMLHttpRequest")
         .send({});
 
       expect(response.status).toBe(400);
@@ -325,6 +340,7 @@ describe("Auth API - Email/Password", () => {
 
       const response = await request(app)
         .post("/api/auth/resend-verification")
+        .set("X-Requested-With", "XMLHttpRequest")
         .send({ email: "test@example.com" });
 
       expect(response.status).toBe(200);
@@ -337,6 +353,7 @@ describe("Auth API - Email/Password", () => {
 
       const response = await request(app)
         .post("/api/auth/resend-verification")
+        .set("X-Requested-With", "XMLHttpRequest")
         .send({ email: "nonexistent@example.com" });
 
       expect(response.status).toBe(200);
@@ -352,6 +369,7 @@ describe("Auth API - Email/Password", () => {
 
       const response = await request(app)
         .post("/api/auth/resend-verification")
+        .set("X-Requested-With", "XMLHttpRequest")
         .send({ email: "test@example.com" });
 
       expect(response.status).toBe(200);
@@ -375,6 +393,7 @@ describe("Auth API - Email/Password", () => {
 
       const response = await request(app)
         .post("/api/auth/forgot-password")
+        .set("X-Requested-With", "XMLHttpRequest")
         .send({ email: "test@example.com" });
 
       expect(response.status).toBe(200);
@@ -387,6 +406,7 @@ describe("Auth API - Email/Password", () => {
 
       const response = await request(app)
         .post("/api/auth/forgot-password")
+        .set("X-Requested-With", "XMLHttpRequest")
         .send({ email: "nonexistent@example.com" });
 
       expect(response.status).toBe(200);
@@ -397,6 +417,7 @@ describe("Auth API - Email/Password", () => {
     it("should return 400 for invalid email format", async () => {
       const response = await request(app)
         .post("/api/auth/forgot-password")
+        .set("X-Requested-With", "XMLHttpRequest")
         .send({ email: "not-valid" });
 
       expect(response.status).toBe(400);
@@ -433,6 +454,7 @@ describe("Auth API - Email/Password", () => {
 
       const response = await request(app)
         .post("/api/auth/reset-password")
+        .set("X-Requested-With", "XMLHttpRequest")
         .send({ token: "a".repeat(64), password: "NewPassword123" });
 
       expect(response.status).toBe(200);
@@ -444,6 +466,7 @@ describe("Auth API - Email/Password", () => {
 
       const response = await request(app)
         .post("/api/auth/reset-password")
+        .set("X-Requested-With", "XMLHttpRequest")
         .send({ token: "bad-token", password: "NewPassword123" });
 
       expect(response.status).toBe(400);
@@ -453,6 +476,7 @@ describe("Auth API - Email/Password", () => {
     it("should return 400 for weak new password", async () => {
       const response = await request(app)
         .post("/api/auth/reset-password")
+        .set("X-Requested-With", "XMLHttpRequest")
         .send({ token: "some-token", password: "weak" });
 
       expect(response.status).toBe(400);
@@ -480,6 +504,7 @@ describe("Auth API - Email/Password", () => {
 
       const response = await request(app)
         .post("/api/auth/set-password")
+        .set("X-Requested-With", "XMLHttpRequest")
         .set("Authorization", `Bearer ${authToken}`)
         .send({ password: "NewPassword123" });
 
@@ -496,6 +521,7 @@ describe("Auth API - Email/Password", () => {
 
       const response = await request(app)
         .post("/api/auth/set-password")
+        .set("X-Requested-With", "XMLHttpRequest")
         .set("Authorization", `Bearer ${authToken}`)
         .send({ password: "NewPassword123" });
 
@@ -506,6 +532,7 @@ describe("Auth API - Email/Password", () => {
     it("should return 401 without auth token", async () => {
       const response = await request(app)
         .post("/api/auth/set-password")
+        .set("X-Requested-With", "XMLHttpRequest")
         .send({ password: "NewPassword123" });
 
       expect(response.status).toBe(401);
@@ -514,6 +541,7 @@ describe("Auth API - Email/Password", () => {
     it("should return 400 for weak password", async () => {
       const response = await request(app)
         .post("/api/auth/set-password")
+        .set("X-Requested-With", "XMLHttpRequest")
         .set("Authorization", `Bearer ${authToken}`)
         .send({ password: "weak" });
 
@@ -528,6 +556,7 @@ describe("Auth API - Email/Password", () => {
     it("should return 400 for missing idToken", async () => {
       const response = await request(app)
         .post("/api/auth/google")
+        .set("X-Requested-With", "XMLHttpRequest")
         .send({});
 
       expect(response.status).toBe(400);
@@ -581,11 +610,12 @@ describe("Auth API - Email/Password", () => {
 
       const response = await request(app)
         .post("/api/auth/refresh")
+        .set("X-Requested-With", "XMLHttpRequest")
         .send({ refreshToken: "valid-refresh-token" });
 
       expect(response.status).toBe(200);
-      expect(response.body.accessToken).toBeDefined();
-      expect(response.body.refreshToken).toBeDefined();
+      expect(response.body.data.accessToken).toBeDefined();
+      expect(response.body.data.refreshToken).toBeDefined();
     });
 
     it("should return 401 for invalid refresh token", async () => {
@@ -593,6 +623,7 @@ describe("Auth API - Email/Password", () => {
 
       const response = await request(app)
         .post("/api/auth/refresh")
+        .set("X-Requested-With", "XMLHttpRequest")
         .send({ refreshToken: "invalid-token" });
 
       expect(response.status).toBe(401);
@@ -601,10 +632,11 @@ describe("Auth API - Email/Password", () => {
     it("should return 400 for missing refreshToken", async () => {
       const response = await request(app)
         .post("/api/auth/refresh")
+        .set("X-Requested-With", "XMLHttpRequest")
         .send({});
 
       expect(response.status).toBe(400);
-      expect(response.body.error).toBe("Validation failed");
+      expect(response.body.error).toBe("Refresh token is required");
     });
   });
 
@@ -614,6 +646,7 @@ describe("Auth API - Email/Password", () => {
 
       const response = await request(app)
         .post("/api/auth/logout")
+        .set("X-Requested-With", "XMLHttpRequest")
         .send({ refreshToken: "some-refresh-token" });
 
       expect(response.status).toBe(200);
@@ -623,10 +656,11 @@ describe("Auth API - Email/Password", () => {
     it("should return 400 for missing refreshToken", async () => {
       const response = await request(app)
         .post("/api/auth/logout")
+        .set("X-Requested-With", "XMLHttpRequest")
         .send({});
 
       expect(response.status).toBe(400);
-      expect(response.body.error).toBe("Validation failed");
+      expect(response.body.error).toBe("Refresh token is required");
     });
   });
 
@@ -636,6 +670,7 @@ describe("Auth API - Email/Password", () => {
 
       const response = await request(app)
         .post("/api/auth/logout-all")
+        .set("X-Requested-With", "XMLHttpRequest")
         .set("Authorization", `Bearer ${authToken}`);
 
       expect(response.status).toBe(200);
@@ -643,7 +678,7 @@ describe("Auth API - Email/Password", () => {
     });
 
     it("should return 401 without auth token", async () => {
-      const response = await request(app).post("/api/auth/logout-all");
+      const response = await request(app).post("/api/auth/logout-all").set("X-Requested-With", "XMLHttpRequest");
 
       expect(response.status).toBe(401);
     });
@@ -661,8 +696,8 @@ describe("Auth API - Email/Password", () => {
         .set("Authorization", `Bearer ${authToken}`);
 
       expect(response.status).toBe(200);
-      expect(response.body.email).toBe("test@example.com");
-      expect(response.body.name).toBe("Test User");
+      expect(response.body.data.email).toBe("test@example.com");
+      expect(response.body.data.name).toBe("Test User");
     });
 
     it("should return 404 if user not found", async () => {
@@ -706,9 +741,9 @@ describe("Auth API - Email/Password", () => {
         .set("Authorization", `Bearer ${authToken}`);
 
       expect(response.status).toBe(200);
-      expect(response.body).toHaveLength(1);
-      expect(response.body[0].id).toBe("session-1");
-      expect(response.body[0].deviceInfo).toBe("Chrome");
+      expect(response.body.data).toHaveLength(1);
+      expect(response.body.data[0].id).toBe("session-1");
+      expect(response.body.data[0].deviceInfo).toBe("Chrome");
     });
 
     it("should return 401 without auth token", async () => {
@@ -744,6 +779,7 @@ describe("Auth API - Email/Password", () => {
         .delete(
           "/api/auth/sessions/550e8400-e29b-41d4-a716-446655440000",
         )
+        .set("X-Requested-With", "XMLHttpRequest")
         .set("Authorization", `Bearer ${authToken}`);
 
       expect(response.status).toBe(200);
@@ -757,6 +793,7 @@ describe("Auth API - Email/Password", () => {
         .delete(
           "/api/auth/sessions/550e8400-e29b-41d4-a716-446655440000",
         )
+        .set("X-Requested-With", "XMLHttpRequest")
         .set("Authorization", `Bearer ${authToken}`);
 
       expect(response.status).toBe(404);
@@ -765,6 +802,7 @@ describe("Auth API - Email/Password", () => {
     it("should return 400 for invalid session ID format", async () => {
       const response = await request(app)
         .delete("/api/auth/sessions/not-a-uuid")
+        .set("X-Requested-With", "XMLHttpRequest")
         .set("Authorization", `Bearer ${authToken}`);
 
       expect(response.status).toBe(400);
@@ -774,7 +812,7 @@ describe("Auth API - Email/Password", () => {
     it("should return 401 without auth token", async () => {
       const response = await request(app).delete(
         "/api/auth/sessions/550e8400-e29b-41d4-a716-446655440000",
-      );
+      ).set("X-Requested-With", "XMLHttpRequest");
 
       expect(response.status).toBe(401);
     });

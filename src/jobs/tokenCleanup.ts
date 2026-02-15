@@ -1,38 +1,57 @@
+import { RefreshTokenRepository } from "../modules/auth/refreshToken.repository";
+import { EmailVerificationRepository } from "../modules/auth/emailVerification.repository";
+import { PasswordResetRepository } from "../modules/auth/passwordReset.repository";
 import { getDb } from "../infra/db";
 import { logger } from "../utils/logger";
 
 const CLEANUP_INTERVAL_MS = 60 * 60 * 1000; // 1 hour
 
+// Advisory lock key — arbitrary fixed integer to prevent concurrent cleanup across instances
+const CLEANUP_LOCK_KEY = 123456789;
+
 let intervalId: ReturnType<typeof setInterval> | null = null;
+
+// Use repository instances to avoid duplicating SQL
+const refreshTokenRepo = new RefreshTokenRepository();
+const emailVerificationRepo = new EmailVerificationRepository();
+const passwordResetRepo = new PasswordResetRepository();
 
 async function cleanExpiredTokens(): Promise<void> {
   try {
     const db = getDb();
 
-    const refreshResult = await db.query(
-      `DELETE FROM refresh_tokens WHERE expires_at < NOW() RETURNING id`,
+    // Try to acquire advisory lock — returns false if another instance holds it
+    const lockResult = await db.query(
+      "SELECT pg_try_advisory_lock($1) AS acquired",
+      [CLEANUP_LOCK_KEY],
     );
-    const emailResult = await db.query(
-      `DELETE FROM email_verification_tokens WHERE expires_at < NOW() RETURNING id`,
-    );
-    const resetResult = await db.query(
-      `DELETE FROM password_reset_tokens WHERE expires_at < NOW() RETURNING id`,
-    );
+    const acquired = lockResult.rows[0]?.acquired;
 
-    const total =
-      (refreshResult.rowCount || 0) +
-      (emailResult.rowCount || 0) +
-      (resetResult.rowCount || 0);
+    if (!acquired) {
+      logger.debug("Token cleanup skipped — another instance holds the lock");
+      return;
+    }
 
-    if (total > 0) {
-      logger.info(
-        {
-          refreshTokens: refreshResult.rowCount,
-          emailVerificationTokens: emailResult.rowCount,
-          passwordResetTokens: resetResult.rowCount,
-        },
-        "Expired tokens cleaned up",
-      );
+    try {
+      const refreshCount = await refreshTokenRepo.deleteExpired();
+      const emailCount = await emailVerificationRepo.deleteExpired();
+      const resetCount = await passwordResetRepo.deleteExpired();
+
+      const total = refreshCount + emailCount + resetCount;
+
+      if (total > 0) {
+        logger.info(
+          {
+            refreshTokens: refreshCount,
+            emailVerificationTokens: emailCount,
+            passwordResetTokens: resetCount,
+          },
+          "Expired tokens cleaned up",
+        );
+      }
+    } finally {
+      // Always release the advisory lock
+      await db.query("SELECT pg_advisory_unlock($1)", [CLEANUP_LOCK_KEY]);
     }
   } catch (error) {
     logger.error({ err: error }, "Token cleanup failed");

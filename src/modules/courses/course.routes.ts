@@ -12,6 +12,7 @@ import {
 } from "../../middlewares/validate";
 import {
   createCourseSchema,
+  updateCourseSchema,
   courseIdSchema,
   listCoursesQuerySchema,
 } from "./course.schemas";
@@ -31,5 +32,20 @@ router.post(
   controller.createCourse,
 );
 router.get("/:id", requireAuth, validateParams(courseIdSchema), controller.getCourse);
+router.put(
+  "/:id",
+  requireAuth,
+  requireRole("INSTRUCTOR", "ADMIN"),
+  validateParams(courseIdSchema),
+  validate(updateCourseSchema),
+  controller.updateCourse,
+);
+router.delete(
+  "/:id",
+  requireAuth,
+  requireRole("INSTRUCTOR", "ADMIN"),
+  validateParams(courseIdSchema),
+  controller.deleteCourse,
+);
 
 export { router as courseRouter };

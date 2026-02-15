@@ -1,22 +1,20 @@
 import rateLimit from "express-rate-limit";
-import { logger } from "../utils/logger";
-
-const isProduction = process.env.NODE_ENV === "production";
-
-if (isProduction) {
-  logger.warn(
-    "Rate limiter is using in-memory store. " +
-      "Set REDIS_URL and use rate-limit-redis for multi-instance deployments.",
-  );
-}
+import { ErrorCode } from "../utils/errorCodes";
 
 function createLimiter(windowMs: number, max: number, message: string) {
   return rateLimit({
     windowMs,
     max,
-    message: { error: message },
+    message: { error: message, code: ErrorCode.RATE_LIMIT_EXCEEDED },
     standardHeaders: true,
     legacyHeaders: false,
+    handler: (req, res) => {
+      res.status(429).json({
+        error: message,
+        code: ErrorCode.RATE_LIMIT_EXCEEDED,
+        requestId: req.requestId,
+      });
+    },
   });
 }
 

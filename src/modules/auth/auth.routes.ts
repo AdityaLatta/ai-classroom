@@ -1,4 +1,3 @@
-// src/modules/auth/auth.routes.ts
 import { Router } from "express";
 import { AuthController } from "./auth.controller";
 import { AuthService } from "./auth.service";
@@ -11,8 +10,6 @@ import { requireAuth } from "../../middlewares/requireAuth";
 import { authLimiter, strictLimiter } from "../../middlewares/rateLimiter";
 import {
   googleLoginSchema,
-  refreshTokenSchema,
-  logoutSchema,
   sessionIdParamSchema,
   registerSchema,
   loginSchema,
@@ -21,9 +18,10 @@ import {
   forgotPasswordSchema,
   resetPasswordSchema,
   setPasswordSchema,
+  changePasswordSchema,
 } from "./auth.schemas";
 
-// Create instances
+// --- Composition root for auth module ---
 const userRepository = new UserRepository();
 const refreshTokenRepository = new RefreshTokenRepository();
 const emailVerificationRepository = new EmailVerificationRepository();
@@ -40,8 +38,8 @@ const router = Router();
 
 // --- OAuth Routes ---
 router.post("/google", validate(googleLoginSchema), authController.googleLogin);
-router.post("/refresh", validate(refreshTokenSchema), authController.refreshToken);
-router.post("/logout", validate(logoutSchema), authController.logout);
+router.post("/refresh", authController.refreshToken);
+router.post("/logout", authController.logout);
 
 // --- Protected Routes ---
 router.post("/logout-all", requireAuth, authController.logoutAll);
@@ -81,6 +79,12 @@ router.post(
   requireAuth,
   validate(setPasswordSchema),
   authController.setPassword,
+);
+router.post(
+  "/change-password",
+  requireAuth,
+  validate(changePasswordSchema),
+  authController.changePassword,
 );
 
 export const authRouter = router;

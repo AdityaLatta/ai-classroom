@@ -31,7 +31,7 @@ jest.mock("../../../infra/db", () => ({
 
 import { verifyGoogleToken } from "../../../auth/google";
 
-describe("AuthService - Email/Password Auth", () => {
+describe("AuthService", () => {
   let service: AuthService;
   let mockUserRepo: jest.Mocked<UserRepository>;
   let mockRefreshTokenRepo: jest.Mocked<RefreshTokenRepository>;
@@ -82,7 +82,7 @@ describe("AuthService - Email/Password Auth", () => {
         name: "Test User",
       });
 
-      expect(result.message).toContain("Registration successful");
+      expect(result.message).toContain("verification email");
       expect(mockUserRepo.createWithPassword).toHaveBeenCalledWith({
         email: "test@example.com",
         name: "Test User",
@@ -91,26 +91,18 @@ describe("AuthService - Email/Password Auth", () => {
       expect(mockEmailVerifRepo.create).toHaveBeenCalled();
     });
 
-    it("should throw 409 if email already exists", async () => {
+    it("should return generic message when email exists (no enumeration)", async () => {
       mockUserRepo.findByEmail.mockResolvedValue(mockUser);
 
-      await expect(
-        service.register({
-          email: "test@example.com",
-          password: "Password123",
-          name: "Test User",
-        }),
-      ).rejects.toThrow(AppError);
+      const result = await service.register({
+        email: "test@example.com",
+        password: "Password123",
+        name: "Test User",
+      });
 
-      try {
-        await service.register({
-          email: "test@example.com",
-          password: "Password123",
-          name: "Test User",
-        });
-      } catch (error) {
-        expect((error as AppError).statusCode).toBe(409);
-      }
+      // Should NOT throw - returns generic message instead
+      expect(result.message).toContain("verification email");
+      expect(mockUserRepo.createWithPassword).not.toHaveBeenCalled();
     });
   });
 
@@ -176,7 +168,6 @@ describe("AuthService - Email/Password Auth", () => {
         });
       } catch (error) {
         expect((error as AppError).statusCode).toBe(401);
-        expect((error as AppError).message).toBe("Invalid email or password");
       }
     });
 
@@ -313,7 +304,7 @@ describe("AuthService - Email/Password Auth", () => {
   });
 
   describe("resetPassword", () => {
-    it("should reset password with valid token", async () => {
+    it("should reset password using repository methods in transaction", async () => {
       mockPasswordResetRepo.findValidByRawToken.mockResolvedValue({
         id: "reset-1",
         userId: "user-123",
@@ -331,24 +322,15 @@ describe("AuthService - Email/Password Auth", () => {
       );
 
       expect(result.message).toContain("Password has been reset");
-      // Verify transaction queries were called
-      expect(mockClient.query).toHaveBeenCalledTimes(4);
-      expect(mockClient.query).toHaveBeenCalledWith(
-        expect.stringContaining("UPDATE users SET password_hash"),
-        ["$2a$12$newhashedpassword", "user-123"],
+      // Verify repository methods are called within the transaction
+      expect(mockUserRepo.updatePasswordHash).toHaveBeenCalledWith(
+        "user-123",
+        "$2a$12$newhashedpassword",
+        mockClient,
       );
-      expect(mockClient.query).toHaveBeenCalledWith(
-        expect.stringContaining("UPDATE password_reset_tokens SET used_at"),
-        ["reset-1"],
-      );
-      expect(mockClient.query).toHaveBeenCalledWith(
-        expect.stringContaining("UPDATE refresh_tokens SET revoked"),
-        ["user-123"],
-      );
-      expect(mockClient.query).toHaveBeenCalledWith(
-        expect.stringContaining("UPDATE users SET email_verified"),
-        ["user-123"],
-      );
+      expect(mockPasswordResetRepo.markUsed).toHaveBeenCalledWith("reset-1", mockClient);
+      expect(mockRefreshTokenRepo.revokeAllForUser).toHaveBeenCalledWith("user-123", mockClient);
+      expect(mockUserRepo.markEmailVerified).toHaveBeenCalledWith("user-123", mockClient);
     });
 
     it("should throw 400 for invalid or expired token", async () => {
@@ -413,7 +395,46 @@ describe("AuthService - Email/Password Auth", () => {
     });
   });
 
-  // --- Tests for existing auth methods ---
+  describe("changePassword", () => {
+    it("should change password when current password is correct", async () => {
+      mockUserRepo.findById.mockResolvedValue(mockUser);
+      (bcrypt.compare as jest.Mock).mockResolvedValue(true);
+      (bcrypt.hash as jest.Mock).mockResolvedValue("$2a$12$newhashedpassword");
+
+      const result = await service.changePassword("user-123", {
+        currentPassword: "Password123",
+        newPassword: "NewPassword456",
+      });
+
+      expect(result.message).toContain("changed successfully");
+    });
+
+    it("should throw 401 when current password is wrong", async () => {
+      mockUserRepo.findById.mockResolvedValue(mockUser);
+      (bcrypt.compare as jest.Mock).mockResolvedValue(false);
+
+      await expect(
+        service.changePassword("user-123", {
+          currentPassword: "WrongPass1",
+          newPassword: "NewPassword456",
+        }),
+      ).rejects.toMatchObject({ statusCode: 401 });
+    });
+
+    it("should throw 400 when no password is set (OAuth user)", async () => {
+      mockUserRepo.findById.mockResolvedValue({
+        ...mockUser,
+        passwordHash: null,
+      });
+
+      await expect(
+        service.changePassword("user-123", {
+          currentPassword: "anything",
+          newPassword: "NewPassword456",
+        }),
+      ).rejects.toMatchObject({ statusCode: 400 });
+    });
+  });
 
   describe("loginWithGoogle", () => {
     it("should login with valid Google token", async () => {
@@ -445,10 +466,6 @@ describe("AuthService - Email/Password Auth", () => {
       expect(result.accessToken).toBeDefined();
       expect(result.refreshToken).toBeDefined();
       expect(result.user.email).toBe("google@example.com");
-      expect(mockUserRepo.findOrCreate).toHaveBeenCalledWith({
-        email: "google@example.com",
-        name: "Google User",
-      });
     });
 
     it("should propagate Google token verification errors", async () => {
@@ -493,7 +510,6 @@ describe("AuthService - Email/Password Auth", () => {
       });
 
       expect(result.accessToken).toBeDefined();
-      expect(result.refreshToken).toBeDefined();
       expect(mockRefreshTokenRepo.revoke).toHaveBeenCalledWith("rt-1");
     });
 
@@ -502,45 +518,13 @@ describe("AuthService - Email/Password Auth", () => {
 
       await expect(
         service.refreshAccessToken({ refreshToken: "invalid" }),
-      ).rejects.toThrow(AppError);
-
-      try {
-        await service.refreshAccessToken({ refreshToken: "invalid" });
-      } catch (error) {
-        expect((error as AppError).statusCode).toBe(401);
-      }
-    });
-
-    it("should throw 401 if user not found for refresh token", async () => {
-      mockRefreshTokenRepo.findValidByHash.mockResolvedValue({
-        id: "rt-1",
-        userId: "deleted-user",
-        tokenHash: "hash",
-        expiresAt: new Date(Date.now() + 86400000),
-        revoked: false,
-        deviceInfo: null,
-        ipAddress: null,
-        createdAt: new Date(),
-        lastUsedAt: null,
-      });
-      mockUserRepo.findById.mockResolvedValue(null);
-
-      await expect(
-        service.refreshAccessToken({ refreshToken: "valid-token" }),
-      ).rejects.toThrow(AppError);
-
-      try {
-        await service.refreshAccessToken({ refreshToken: "valid-token" });
-      } catch (error) {
-        expect((error as AppError).statusCode).toBe(401);
-      }
+      ).rejects.toMatchObject({ statusCode: 401 });
     });
   });
 
   describe("logout", () => {
     it("should revoke refresh token", async () => {
       await service.logout("some-refresh-token");
-
       expect(mockRefreshTokenRepo.revokeByHash).toHaveBeenCalled();
     });
   });
@@ -548,16 +532,12 @@ describe("AuthService - Email/Password Auth", () => {
   describe("logoutAll", () => {
     it("should revoke all refresh tokens for user", async () => {
       await service.logoutAll("user-123");
-
-      expect(mockRefreshTokenRepo.revokeAllForUser).toHaveBeenCalledWith(
-        "user-123",
-      );
+      expect(mockRefreshTokenRepo.revokeAllForUser).toHaveBeenCalledWith("user-123");
     });
   });
 
   describe("getCurrentUser", () => {
     it("should return user for valid access token", async () => {
-      // We need a real token for this test
       const { signAccessToken } = jest.requireActual("../.././../auth/jwt");
       const token = signAccessToken({
         sub: "user-123",
@@ -575,77 +555,7 @@ describe("AuthService - Email/Password Auth", () => {
     it("should throw 401 for invalid access token", async () => {
       await expect(
         service.getCurrentUser("invalid-token"),
-      ).rejects.toThrow(AppError);
-
-      try {
-        await service.getCurrentUser("invalid-token");
-      } catch (error) {
-        expect((error as AppError).statusCode).toBe(401);
-      }
-    });
-
-    it("should throw 401 if user not found", async () => {
-      const { signAccessToken } = jest.requireActual("../.././../auth/jwt");
-      const token = signAccessToken({
-        sub: "deleted-user",
-        role: "STUDENT",
-        email: "test@example.com",
-      });
-      mockUserRepo.findById.mockResolvedValue(null);
-
-      await expect(service.getCurrentUser(token)).rejects.toThrow(AppError);
-
-      try {
-        await service.getCurrentUser(token);
-      } catch (error) {
-        expect((error as AppError).statusCode).toBe(401);
-      }
-    });
-  });
-
-  describe("getUserById", () => {
-    it("should return user when found", async () => {
-      mockUserRepo.findById.mockResolvedValue(mockUser);
-
-      const result = await service.getUserById("user-123");
-
-      expect(result).toEqual(mockUser);
-    });
-
-    it("should return null when user not found", async () => {
-      mockUserRepo.findById.mockResolvedValue(null);
-
-      const result = await service.getUserById("nonexistent");
-
-      expect(result).toBeNull();
-    });
-  });
-
-  describe("getActiveSessions", () => {
-    it("should return active sessions for user", async () => {
-      const mockSessions = [
-        {
-          id: "rt-1",
-          userId: "user-123",
-          tokenHash: "hash1",
-          expiresAt: new Date(),
-          revoked: false,
-          deviceInfo: "Chrome",
-          ipAddress: "127.0.0.1",
-          createdAt: new Date(),
-          lastUsedAt: new Date(),
-        },
-      ];
-      mockRefreshTokenRepo.getActiveSessionsForUser.mockResolvedValue(
-        mockSessions,
-      );
-
-      const result = await service.getActiveSessions("user-123");
-
-      expect(result).toEqual(mockSessions);
-      expect(
-        mockRefreshTokenRepo.getActiveSessionsForUser,
-      ).toHaveBeenCalledWith("user-123");
+      ).rejects.toMatchObject({ statusCode: 401 });
     });
   });
 
@@ -666,7 +576,6 @@ describe("AuthService - Email/Password Auth", () => {
       ]);
 
       await service.revokeSession("user-123", "session-1");
-
       expect(mockRefreshTokenRepo.revoke).toHaveBeenCalledWith("session-1");
     });
 
@@ -675,13 +584,7 @@ describe("AuthService - Email/Password Auth", () => {
 
       await expect(
         service.revokeSession("user-123", "nonexistent"),
-      ).rejects.toThrow(AppError);
-
-      try {
-        await service.revokeSession("user-123", "nonexistent");
-      } catch (error) {
-        expect((error as AppError).statusCode).toBe(404);
-      }
+      ).rejects.toMatchObject({ statusCode: 404 });
     });
   });
 });

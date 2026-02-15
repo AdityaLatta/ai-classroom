@@ -3,12 +3,28 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
+function getSslConfig(): { rejectUnauthorized: boolean; ca?: string } | false {
+  const dbSsl = process.env.DB_SSL === "true";
+  const dbSslCa = process.env.DB_SSL_CA;
+  const connectionString = process.env.DATABASE_URL || "";
+
+  const requiresSsl = dbSsl || connectionString.includes("sslmode=");
+  if (!requiresSsl) return false;
+
+  return {
+    rejectUnauthorized: !!dbSslCa,
+    ...(dbSslCa ? { ca: dbSslCa } : {}),
+  };
+}
+
+const sslConfig = getSslConfig();
+
 const config: { [key: string]: Knex.Config } = {
   development: {
     client: "pg",
     connection: {
       connectionString: process.env.DATABASE_URL,
-      ssl: { rejectUnauthorized: false },
+      ssl: sslConfig,
     },
     migrations: {
       directory: "./migrations",
@@ -23,7 +39,7 @@ const config: { [key: string]: Knex.Config } = {
     client: "pg",
     connection: {
       connectionString: process.env.DATABASE_URL,
-      ssl: { rejectUnauthorized: false },
+      ssl: sslConfig,
     },
     migrations: {
       directory: "./migrations",
@@ -35,7 +51,7 @@ const config: { [key: string]: Knex.Config } = {
     client: "pg",
     connection: {
       connectionString: process.env.DATABASE_URL,
-      ssl: { rejectUnauthorized: false },
+      ssl: sslConfig,
     },
     pool: {
       min: 2,

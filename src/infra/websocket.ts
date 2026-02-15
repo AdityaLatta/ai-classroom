@@ -6,7 +6,10 @@ import { logger, createChildLogger } from "../utils/logger";
 interface AuthenticatedSocket extends WebSocket {
   userId?: string;
   role?: string;
+  isAuthenticated?: boolean;
 }
+
+const AUTH_TIMEOUT_MS = 5000;
 
 export function initWebSocket(server: HttpServer) {
   const wss = new WebSocketServer({
@@ -14,43 +17,66 @@ export function initWebSocket(server: HttpServer) {
     path: "/ws",
   });
 
-  wss.on("connection", (socket: AuthenticatedSocket, request) => {
-    try {
-      // Example: token passed as query param
-      const url = new URL(request.url || "", "http://localhost");
-      const token = url.searchParams.get("token");
+  wss.on("connection", (socket: AuthenticatedSocket) => {
+    socket.isAuthenticated = false;
 
-      if (!token) {
-        socket.close(1008, "Unauthorized");
+    // Require authentication via first message within timeout
+    const authTimer = setTimeout(() => {
+      if (!socket.isAuthenticated) {
+        socket.close(1008, "Authentication timeout");
+      }
+    }, AUTH_TIMEOUT_MS);
+
+    socket.on("message", (message) => {
+      const raw = message.toString();
+
+      // First message must be auth
+      if (!socket.isAuthenticated) {
+        clearTimeout(authTimer);
+        try {
+          const msg = JSON.parse(raw);
+          if (msg.type !== "AUTH" || !msg.token) {
+            socket.close(1008, "First message must be AUTH with token");
+            return;
+          }
+
+          const payload = verifyAccessToken(msg.token);
+          socket.userId = payload.sub;
+          socket.role = payload.role;
+          socket.isAuthenticated = true;
+
+          const wsLogger = createChildLogger({
+            component: "websocket",
+            userId: socket.userId,
+          });
+
+          wsLogger.info("WebSocket authenticated");
+
+          socket.send(JSON.stringify({ type: "AUTH_OK" }));
+
+          // Re-attach message handler for subsequent messages
+          socket.on("message", (msg) => handleMessage(socket, msg.toString()));
+        } catch {
+          socket.close(1008, "Invalid token");
+        }
         return;
       }
+    });
 
-      const payload = verifyAccessToken(token);
-
-      socket.userId = payload.sub;
-      socket.role = payload.role;
-
-      const wsLogger = createChildLogger({
-        component: "websocket",
-        userId: socket.userId,
-      });
-
-      wsLogger.info("WebSocket connected");
-
-      socket.on("message", (message) => {
-        handleMessage(socket, message.toString());
-      });
-
-      socket.on("close", () => {
+    socket.on("close", () => {
+      clearTimeout(authTimer);
+      if (socket.userId) {
+        const wsLogger = createChildLogger({
+          component: "websocket",
+          userId: socket.userId,
+        });
         wsLogger.info("WebSocket disconnected");
-      });
+      }
+    });
 
-      socket.on("error", (err) => {
-        wsLogger.error({ err }, "WebSocket error");
-      });
-    } catch {
-      socket.close(1008, "Invalid token");
-    }
+    socket.on("error", (err) => {
+      logger.error({ err, userId: socket.userId }, "WebSocket error");
+    });
   });
 
   logger.info("WebSocket server initialized");
@@ -67,12 +93,13 @@ function handleMessage(socket: AuthenticatedSocket, raw: string) {
 
   switch (msg.type) {
     case "JOIN_ROOM":
-      break;
-
     case "WEBRTC_OFFER":
+    case "CHAT_MESSAGE":
+      // TODO: Implement room join, WebRTC signaling, and chat message handling
+      socket.send(JSON.stringify({ error: "Not implemented yet" }));
       break;
 
-    case "CHAT_MESSAGE":
-      break;
+    default:
+      socket.send(JSON.stringify({ error: "Unknown message type" }));
   }
 }

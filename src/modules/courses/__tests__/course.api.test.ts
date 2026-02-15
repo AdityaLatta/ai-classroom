@@ -15,6 +15,16 @@ jest.mock("../../../infra/db", () => ({
   healthCheck: jest.fn().mockResolvedValue(true),
 }));
 
+// Mock the mailer
+jest.mock("../../../infra/mailer", () => ({
+  getMailer: jest.fn(() => ({
+    verify: jest.fn().mockResolvedValue(true),
+  })),
+  sendEmail: jest.fn().mockResolvedValue(undefined),
+  verificationEmailHtml: jest.fn().mockReturnValue("<html>verify</html>"),
+  passwordResetEmailHtml: jest.fn().mockReturnValue("<html>reset</html>"),
+}));
+
 describe("Course API", () => {
   let app: Express;
   let authToken: string;
@@ -46,6 +56,7 @@ describe("Course API", () => {
       description: validCourseData.description,
       instructor_id: userPayload.sub,
       created_at: new Date("2024-01-01"),
+      updated_at: new Date("2024-01-01"),
     };
 
     it("should create a course with valid data", async () => {
@@ -56,11 +67,12 @@ describe("Course API", () => {
 
       const response = await request(app)
         .post("/api/courses")
+        .set("X-Requested-With", "XMLHttpRequest")
         .set("Authorization", `Bearer ${authToken}`)
         .send(validCourseData);
 
       expect(response.status).toBe(201);
-      expect(response.body).toMatchObject({
+      expect(response.body.data).toMatchObject({
         id: "course-123",
         title: validCourseData.title,
         description: validCourseData.description,
@@ -71,25 +83,32 @@ describe("Course API", () => {
     it("should return 401 without auth token", async () => {
       const response = await request(app)
         .post("/api/courses")
+        .set("X-Requested-With", "XMLHttpRequest")
         .send(validCourseData);
 
       expect(response.status).toBe(401);
-      expect(response.body).toEqual({ error: "Unauthorized" });
+      expect(response.body).toEqual(
+        expect.objectContaining({ error: "Unauthorized", code: "AUTH_UNAUTHORIZED" }),
+      );
     });
 
     it("should return 401 with invalid auth token", async () => {
       const response = await request(app)
         .post("/api/courses")
+        .set("X-Requested-With", "XMLHttpRequest")
         .set("Authorization", "Bearer invalid-token")
         .send(validCourseData);
 
       expect(response.status).toBe(401);
-      expect(response.body).toEqual({ error: "Invalid or expired token" });
+      expect(response.body).toEqual(
+        expect.objectContaining({ error: "Invalid or expired token", code: "AUTH_ACCESS_TOKEN_INVALID" }),
+      );
     });
 
     it("should return 400 for missing title", async () => {
       const response = await request(app)
         .post("/api/courses")
+        .set("X-Requested-With", "XMLHttpRequest")
         .set("Authorization", `Bearer ${authToken}`)
         .send({ description: "Valid description here" });
 
@@ -100,6 +119,7 @@ describe("Course API", () => {
     it("should return 400 for title too short", async () => {
       const response = await request(app)
         .post("/api/courses")
+        .set("X-Requested-With", "XMLHttpRequest")
         .set("Authorization", `Bearer ${authToken}`)
         .send({ title: "AB", description: "Valid description here" });
 
@@ -113,6 +133,7 @@ describe("Course API", () => {
     it("should return 400 for description too short", async () => {
       const response = await request(app)
         .post("/api/courses")
+        .set("X-Requested-With", "XMLHttpRequest")
         .set("Authorization", `Bearer ${authToken}`)
         .send({ title: "Valid Title", description: "Short" });
 
@@ -132,6 +153,7 @@ describe("Course API", () => {
         description: "First course description",
         instructor_id: "instructor-1",
         created_at: new Date("2024-01-01"),
+        updated_at: new Date("2024-01-01"),
       },
       {
         id: "course-2",
@@ -139,6 +161,7 @@ describe("Course API", () => {
         description: "Second course description",
         instructor_id: "instructor-2",
         created_at: new Date("2024-01-02"),
+        updated_at: new Date("2024-01-02"),
       },
     ];
 
@@ -163,9 +186,14 @@ describe("Course API", () => {
     });
 
     it("should respect limit and offset params", async () => {
+      // Generate limit+1 rows to indicate hasMore=true (cursor-based pagination)
+      const manyRows = Array.from({ length: 11 }, (_, i) => ({
+        ...mockCourseRows[0],
+        id: `course-${i}`,
+      }));
       mockQuery
         .mockResolvedValueOnce({ rows: [{ count: "50" }], rowCount: 1 })
-        .mockResolvedValueOnce({ rows: [mockCourseRows[0]], rowCount: 1 });
+        .mockResolvedValueOnce({ rows: manyRows, rowCount: 11 });
 
       const response = await request(app)
         .get("/api/courses?limit=10&offset=20")
@@ -178,6 +206,7 @@ describe("Course API", () => {
         offset: 20,
         hasMore: true,
       });
+      expect(response.body.data).toHaveLength(10);
     });
 
     it("should filter by search term", async () => {
@@ -211,6 +240,7 @@ describe("Course API", () => {
       description: "Test Description",
       instructor_id: "instructor-456",
       created_at: new Date("2024-01-01"),
+      updated_at: new Date("2024-01-01"),
     };
 
     it("should return course when found", async () => {
@@ -224,7 +254,7 @@ describe("Course API", () => {
         .set("Authorization", `Bearer ${authToken}`);
 
       expect(response.status).toBe(200);
-      expect(response.body).toMatchObject({
+      expect(response.body.data).toMatchObject({
         id: "course-123",
         title: "Test Course",
       });

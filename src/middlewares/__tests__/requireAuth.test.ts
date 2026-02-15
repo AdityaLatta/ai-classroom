@@ -32,7 +32,9 @@ describe("requireAuth middleware", () => {
     requireAuth(mockRequest as Request, mockResponse as Response, mockNext);
 
     expect(statusMock).toHaveBeenCalledWith(401);
-    expect(jsonMock).toHaveBeenCalledWith({ error: "Unauthorized" });
+    expect(jsonMock).toHaveBeenCalledWith(
+      expect.objectContaining({ error: "Unauthorized", code: "AUTH_UNAUTHORIZED" }),
+    );
     expect(mockNext).not.toHaveBeenCalled();
   });
 
@@ -42,7 +44,9 @@ describe("requireAuth middleware", () => {
     requireAuth(mockRequest as Request, mockResponse as Response, mockNext);
 
     expect(statusMock).toHaveBeenCalledWith(401);
-    expect(jsonMock).toHaveBeenCalledWith({ error: "Unauthorized" });
+    expect(jsonMock).toHaveBeenCalledWith(
+      expect.objectContaining({ error: "Unauthorized", code: "AUTH_UNAUTHORIZED" }),
+    );
     expect(mockNext).not.toHaveBeenCalled();
   });
 
@@ -52,9 +56,9 @@ describe("requireAuth middleware", () => {
     requireAuth(mockRequest as Request, mockResponse as Response, mockNext);
 
     expect(statusMock).toHaveBeenCalledWith(401);
-    expect(jsonMock).toHaveBeenCalledWith({
-      error: "Invalid or expired token",
-    });
+    expect(jsonMock).toHaveBeenCalledWith(
+      expect.objectContaining({ error: "Invalid or expired token", code: "AUTH_ACCESS_TOKEN_INVALID" }),
+    );
     expect(mockNext).not.toHaveBeenCalled();
   });
 

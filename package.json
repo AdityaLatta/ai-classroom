@@ -21,9 +21,13 @@
   },
   "author": "Aditya latta",
   "license": "ISC",
+  "engines": {
+    "node": ">=20.0.0"
+  },
   "devDependencies": {
     "@eslint/js": "^9.19.0",
     "@types/bcryptjs": "^2.4.6",
+    "@types/cookie-parser": "^1.4.10",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
     "@types/jest": "^29.5.14",
@@ -50,6 +54,7 @@
     "@asteasolutions/zod-to-openapi": "^7.3.4",
     "@sentry/node": "^8.49.0",
     "bcryptjs": "^3.0.3",
+    "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",
     "dotenv": "^17.2.3",
     "express": "^5.2.1",

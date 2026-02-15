@@ -1,5 +1,19 @@
+import { z } from "zod";
+import { Pool, PoolClient } from "pg";
 import { getDb } from "../../infra/db";
 import { getRefreshTokenExpiry } from "../../auth/jwt";
+
+const refreshTokenRowSchema = z.object({
+  id: z.string(),
+  user_id: z.string(),
+  token_hash: z.string(),
+  expires_at: z.coerce.date(),
+  revoked: z.boolean(),
+  device_info: z.string().nullable(),
+  ip_address: z.string().nullable(),
+  created_at: z.coerce.date(),
+  last_used_at: z.coerce.date().nullable(),
+});
 
 export interface RefreshToken {
   id: string;
@@ -26,23 +40,25 @@ export interface IRefreshTokenRepository {
   updateLastUsed(id: string): Promise<void>;
   revoke(id: string): Promise<void>;
   revokeByHash(tokenHash: string): Promise<void>;
-  revokeAllForUser(userId: string): Promise<void>;
+  revokeAllForUser(userId: string, client?: PoolClient): Promise<void>;
   deleteExpired(): Promise<number>;
   getActiveSessionsForUser(userId: string): Promise<RefreshToken[]>;
 }
 
+const REFRESH_TOKEN_COLUMNS = "id, user_id, token_hash, expires_at, revoked, device_info, ip_address, created_at, last_used_at";
+
 export class RefreshTokenRepository implements IRefreshTokenRepository {
-  /**
-   * Store a new refresh token
-   */
+  private query(client?: PoolClient): Pick<Pool, "query"> {
+    return client || getDb();
+  }
+
   async create(dto: CreateRefreshTokenDTO): Promise<RefreshToken> {
-    const db = getDb();
     const expiresAt = getRefreshTokenExpiry();
 
-    const result = await db.query(
+    const result = await this.query().query(
       `INSERT INTO refresh_tokens (user_id, token_hash, expires_at, device_info, ip_address)
        VALUES ($1, $2, $3, $4, $5)
-       RETURNING *`,
+       RETURNING ${REFRESH_TOKEN_COLUMNS}`,
       [
         dto.userId,
         dto.tokenHash,
@@ -55,14 +71,9 @@ export class RefreshTokenRepository implements IRefreshTokenRepository {
     return this.mapRow(result.rows[0]);
   }
 
-  /**
-   * Find a valid (non-expired, non-revoked) refresh token by its hash
-   */
   async findValidByHash(tokenHash: string): Promise<RefreshToken | null> {
-    const db = getDb();
-
-    const result = await db.query(
-      `SELECT * FROM refresh_tokens
+    const result = await this.query().query(
+      `SELECT ${REFRESH_TOKEN_COLUMNS} FROM refresh_tokens
        WHERE token_hash = $1
        AND revoked = false
        AND expires_at > NOW()`,
@@ -73,67 +84,44 @@ export class RefreshTokenRepository implements IRefreshTokenRepository {
     return this.mapRow(result.rows[0]);
   }
 
-  /**
-   * Update last_used_at timestamp
-   */
   async updateLastUsed(id: string): Promise<void> {
-    const db = getDb();
-    await db.query(
+    await this.query().query(
       `UPDATE refresh_tokens SET last_used_at = NOW() WHERE id = $1`,
       [id],
     );
   }
 
-  /**
-   * Revoke a specific refresh token
-   */
   async revoke(id: string): Promise<void> {
-    const db = getDb();
-    await db.query(`UPDATE refresh_tokens SET revoked = true WHERE id = $1`, [
-      id,
-    ]);
+    await this.query().query(
+      `UPDATE refresh_tokens SET revoked = true WHERE id = $1`,
+      [id],
+    );
   }
 
-  /**
-   * Revoke a token by its hash
-   */
   async revokeByHash(tokenHash: string): Promise<void> {
-    const db = getDb();
-    await db.query(
+    await this.query().query(
       `UPDATE refresh_tokens SET revoked = true WHERE token_hash = $1`,
       [tokenHash],
     );
   }
 
-  /**
-   * Revoke all refresh tokens for a user (logout from all devices)
-   */
-  async revokeAllForUser(userId: string): Promise<void> {
-    const db = getDb();
-    await db.query(
+  async revokeAllForUser(userId: string, client?: PoolClient): Promise<void> {
+    await this.query(client).query(
       `UPDATE refresh_tokens SET revoked = true WHERE user_id = $1`,
       [userId],
     );
   }
 
-  /**
-   * Delete expired tokens (cleanup job)
-   */
   async deleteExpired(): Promise<number> {
-    const db = getDb();
-    const result = await db.query(
+    const result = await this.query().query(
       `DELETE FROM refresh_tokens WHERE expires_at < NOW() RETURNING id`,
     );
     return result.rowCount || 0;
   }
 
-  /**
-   * Get all active sessions for a user
-   */
   async getActiveSessionsForUser(userId: string): Promise<RefreshToken[]> {
-    const db = getDb();
-    const result = await db.query(
-      `SELECT * FROM refresh_tokens
+    const result = await this.query().query(
+      `SELECT ${REFRESH_TOKEN_COLUMNS} FROM refresh_tokens
        WHERE user_id = $1
        AND revoked = false
        AND expires_at > NOW()
@@ -143,17 +131,19 @@ export class RefreshTokenRepository implements IRefreshTokenRepository {
     return result.rows.map((row) => this.mapRow(row));
   }
 
+  /** Maps a database row to a RefreshToken domain object. */
   private mapRow(row: Record<string, unknown>): RefreshToken {
+    const parsed = refreshTokenRowSchema.parse(row);
     return {
-      id: row.id as string,
-      userId: row.user_id as string,
-      tokenHash: row.token_hash as string,
-      expiresAt: row.expires_at as Date,
-      revoked: row.revoked as boolean,
-      deviceInfo: row.device_info as string | null,
-      ipAddress: row.ip_address as string | null,
-      createdAt: row.created_at as Date,
-      lastUsedAt: row.last_used_at as Date | null,
+      id: parsed.id,
+      userId: parsed.user_id,
+      tokenHash: parsed.token_hash,
+      expiresAt: parsed.expires_at,
+      revoked: parsed.revoked,
+      deviceInfo: parsed.device_info,
+      ipAddress: parsed.ip_address,
+      createdAt: parsed.created_at,
+      lastUsedAt: parsed.last_used_at,
     };
   }
 }

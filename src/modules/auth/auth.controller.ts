@@ -1,8 +1,40 @@
-// src/modules/auth/auth.controller.ts
 import { Request, Response } from "express";
-import { AuthService } from "./auth.service";
+import { AuthService, AuthTokens } from "./auth.service";
 import { AppError } from "../../utils/AppError";
+import { ErrorCode } from "../../utils/errorCodes";
 import { asyncHandler } from "../../utils/asyncHandler";
+import { getEnv } from "../../config/env";
+import { REFRESH_TOKEN_EXPIRY_DAYS } from "../../auth/jwt";
+
+const REFRESH_TOKEN_COOKIE = "refresh_token";
+const COOKIE_PATH = "/api/auth";
+
+// Security decision: CSRF protection is provided by SameSite=Strict cookies combined
+// with Bearer token authentication. The refresh token cookie uses SameSite=Strict which
+// prevents cross-origin requests from including the cookie. All state-changing endpoints
+// also require a valid Bearer token in the Authorization header, providing double protection.
+
+function setRefreshTokenCookie(res: Response, refreshToken: string): void {
+  const { COOKIE_SECURE, COOKIE_DOMAIN, NODE_ENV } = getEnv();
+  res.cookie(REFRESH_TOKEN_COOKIE, refreshToken, {
+    httpOnly: true,
+    secure: COOKIE_SECURE || NODE_ENV === "production",
+    sameSite: "strict",
+    maxAge: REFRESH_TOKEN_EXPIRY_DAYS * 24 * 60 * 60 * 1000,
+    path: COOKIE_PATH,
+    ...(COOKIE_DOMAIN ? { domain: COOKIE_DOMAIN } : {}),
+  });
+}
+
+function clearRefreshTokenCookie(res: Response): void {
+  res.clearCookie(REFRESH_TOKEN_COOKIE, { path: COOKIE_PATH });
+}
+
+function sendAuthResponse(res: Response, result: AuthTokens, status = 200): void {
+  setRefreshTokenCookie(res, result.refreshToken);
+  // Also include refreshToken in body for clients that can't use cookies (mobile apps)
+  res.status(status).json({ data: result });
+}
 
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
@@ -18,13 +50,19 @@ export class AuthController {
       ipAddress,
     });
 
-    res.json(result);
+    sendAuthResponse(res, result);
   });
 
   refreshToken = asyncHandler(async (req: Request, res: Response) => {
-    const { refreshToken } = req.body;
+    // Accept from body or cookie
+    const refreshToken =
+      req.body.refreshToken || req.cookies?.[REFRESH_TOKEN_COOKIE];
     const deviceInfo = req.headers["user-agent"];
     const ipAddress = req.ip;
+
+    if (!refreshToken) {
+      throw new AppError(400, "Refresh token is required", ErrorCode.AUTH_REFRESH_TOKEN_REQUIRED);
+    }
 
     const result = await this.authService.refreshAccessToken({
       refreshToken,
@@ -32,17 +70,19 @@ export class AuthController {
       ipAddress,
     });
 
-    res.json(result);
+    sendAuthResponse(res, result);
   });
 
   logout = asyncHandler(async (req: Request, res: Response) => {
-    const { refreshToken } = req.body;
+    const refreshToken =
+      req.body.refreshToken || req.cookies?.[REFRESH_TOKEN_COOKIE];
 
     if (!refreshToken) {
-      throw new AppError(400, "Refresh token is required", "AUTH_REFRESH_TOKEN_REQUIRED");
+      throw new AppError(400, "Refresh token is required", ErrorCode.AUTH_REFRESH_TOKEN_REQUIRED);
     }
 
     await this.authService.logout(refreshToken);
+    clearRefreshTokenCookie(res);
 
     res.json({ message: "Logged out successfully" });
   });
@@ -51,6 +91,7 @@ export class AuthController {
     const userId = req.user!.id;
 
     await this.authService.logoutAll(userId);
+    clearRefreshTokenCookie(res);
 
     res.json({ message: "Logged out from all devices" });
   });
@@ -60,15 +101,20 @@ export class AuthController {
 
     const user = await this.authService.getUserById(userId);
     if (!user) {
-      throw new AppError(404, "User not found", "AUTH_USER_NOT_FOUND");
+      throw new AppError(404, "User not found", ErrorCode.AUTH_USER_NOT_FOUND);
     }
 
+    // Response DTO - never expose passwordHash or internal fields
     res.json({
-      id: user.id,
-      email: user.email,
-      name: user.name,
-      role: user.role,
-      createdAt: user.createdAt,
+      data: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        emailVerified: user.emailVerified,
+        authProvider: user.authProvider,
+        createdAt: user.createdAt,
+      },
     });
   });
 
@@ -77,20 +123,21 @@ export class AuthController {
 
     const sessions = await this.authService.getActiveSessions(userId);
 
-    res.json(
-      sessions.map((session) => ({
+    // Response DTO - strip tokenHash
+    res.json({
+      data: sessions.map((session) => ({
         id: session.id,
         deviceInfo: session.deviceInfo,
         ipAddress: session.ipAddress,
         createdAt: session.createdAt,
         lastUsedAt: session.lastUsedAt,
       })),
-    );
+    });
   });
 
   revokeSession = asyncHandler(async (req: Request, res: Response) => {
     const userId = req.user!.id;
-    const sessionId = req.params.sessionId as string;
+    const { sessionId } = req.validated.params as { sessionId: string };
 
     await this.authService.revokeSession(userId, sessionId);
 
@@ -117,7 +164,7 @@ export class AuthController {
       deviceInfo,
       ipAddress,
     });
-    res.json(result);
+    sendAuthResponse(res, result);
   });
 
   verifyEmail = asyncHandler(async (req: Request, res: Response) => {
@@ -148,6 +195,17 @@ export class AuthController {
     const userId = req.user!.id;
     const { password } = req.body;
     const result = await this.authService.setPassword(userId, password);
+    res.json(result);
+  });
+
+  changePassword = asyncHandler(async (req: Request, res: Response) => {
+    const userId = req.user!.id;
+    const { currentPassword, newPassword } = req.body;
+    const result = await this.authService.changePassword(userId, {
+      currentPassword,
+      newPassword,
+    });
+    clearRefreshTokenCookie(res);
     res.json(result);
   });
 }

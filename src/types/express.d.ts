@@ -9,5 +9,10 @@ declare module "express-serve-static-core" {
     };
     requestId: string;
     log: Logger;
+    validated: {
+      body?: unknown;
+      query?: unknown;
+      params?: unknown;
+    };
   }
 }

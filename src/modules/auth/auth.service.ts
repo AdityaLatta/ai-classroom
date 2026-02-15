@@ -1,4 +1,5 @@
 import bcrypt from "bcryptjs";
+import { PoolClient } from "pg";
 import { verifyGoogleToken } from "../../auth/google";
 import {
   generateTokenPair,
@@ -15,6 +16,8 @@ import {
 } from "../../infra/mailer";
 import { withTransaction } from "../../infra/db";
 import { AppError } from "../../utils/AppError";
+import { ErrorCode } from "../../utils/errorCodes";
+import { audit } from "../../utils/audit";
 import { IUserRepository, User } from "../users/user.repository";
 import { IRefreshTokenRepository } from "./refreshToken.repository";
 import { IEmailVerificationRepository } from "./emailVerification.repository";
@@ -59,6 +62,39 @@ export interface LoginDTO {
   ipAddress?: string;
 }
 
+export interface ChangePasswordDTO {
+  currentPassword: string;
+  newPassword: string;
+}
+
+// In-memory lockout tracker (use Redis in production multi-instance)
+const loginAttempts = new Map<string, { count: number; lockedUntil: number }>();
+
+const LOGIN_ATTEMPTS_CLEANUP_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
+
+let loginAttemptsCleanupTimer: ReturnType<typeof setInterval> | null = null;
+
+function evictExpiredLoginAttempts(): void {
+  const now = Date.now();
+  for (const [email, entry] of loginAttempts) {
+    if (entry.lockedUntil > 0 && entry.lockedUntil <= now) {
+      loginAttempts.delete(email);
+    }
+  }
+}
+
+export function startLoginAttemptsCleanup(): void {
+  loginAttemptsCleanupTimer = setInterval(evictExpiredLoginAttempts, LOGIN_ATTEMPTS_CLEANUP_INTERVAL_MS);
+  loginAttemptsCleanupTimer.unref();
+}
+
+export function stopLoginAttemptsCleanup(): void {
+  if (loginAttemptsCleanupTimer) {
+    clearInterval(loginAttemptsCleanupTimer);
+    loginAttemptsCleanupTimer = null;
+  }
+}
+
 export class AuthService {
   constructor(
     private readonly userRepo: IUserRepository,
@@ -67,120 +103,117 @@ export class AuthService {
     private readonly passwordResetRepo: IPasswordResetRepository,
   ) {}
 
-  /**
-   * Login with Google OAuth
-   */
   async loginWithGoogle(dto: LoginWithGoogleDTO): Promise<AuthTokens> {
-    // Verify Google token
     const googleUser = await verifyGoogleToken(dto.idToken);
 
-    // Find or create user
     const user = await this.userRepo.findOrCreate({
       email: googleUser.email,
       name: googleUser.name,
     });
 
-    // Generate tokens
+    audit({
+      action: "USER_GOOGLE_LOGIN",
+      userId: user.id,
+      email: user.email,
+      ip: dto.ipAddress,
+      userAgent: dto.deviceInfo,
+    });
+
     return this.createAuthTokens(user, dto.deviceInfo, dto.ipAddress);
   }
 
-  /**
-   * Refresh access token using refresh token
-   */
   async refreshAccessToken(dto: RefreshTokenDTO): Promise<AuthTokens> {
     const tokenHash = hashRefreshToken(dto.refreshToken);
 
-    // Find valid refresh token
     const storedToken = await this.refreshTokenRepo.findValidByHash(tokenHash);
     if (!storedToken) {
-      throw new AppError(401, "Invalid or expired refresh token", "AUTH_REFRESH_TOKEN_INVALID");
+      throw new AppError(401, "Invalid or expired refresh token", ErrorCode.AUTH_REFRESH_TOKEN_INVALID);
     }
 
-    // Get user
     const user = await this.userRepo.findById(storedToken.userId);
     if (!user) {
-      throw new AppError(401, "User not found", "AUTH_USER_NOT_FOUND");
+      throw new AppError(401, "User not found", ErrorCode.AUTH_USER_NOT_FOUND);
     }
 
     // Revoke old refresh token (rotation for security)
     await this.refreshTokenRepo.revoke(storedToken.id);
 
-    // Generate new tokens
+    audit({
+      action: "TOKEN_REFRESHED",
+      userId: user.id,
+      ip: dto.ipAddress,
+    });
+
     return this.createAuthTokens(user, dto.deviceInfo, dto.ipAddress);
   }
 
-  /**
-   * Logout - revoke refresh token
-   */
   async logout(refreshToken: string): Promise<void> {
     const tokenHash = hashRefreshToken(refreshToken);
     await this.refreshTokenRepo.revokeByHash(tokenHash);
+
+    audit({ action: "USER_LOGOUT" });
   }
 
-  /**
-   * Logout from all devices
-   */
   async logoutAll(userId: string): Promise<void> {
     await this.refreshTokenRepo.revokeAllForUser(userId);
+
+    audit({ action: "USER_LOGOUT_ALL", userId });
   }
 
-  /**
-   * Get current user from access token
-   */
   async getCurrentUser(accessToken: string): Promise<User> {
     let payload: JwtPayload;
     try {
       payload = verifyAccessToken(accessToken);
     } catch {
-      throw new AppError(401, "Invalid or expired access token", "AUTH_ACCESS_TOKEN_INVALID");
+      throw new AppError(401, "Invalid or expired access token", ErrorCode.AUTH_ACCESS_TOKEN_INVALID);
     }
 
     const user = await this.userRepo.findById(payload.sub);
     if (!user) {
-      throw new AppError(401, "User not found", "AUTH_USER_NOT_FOUND");
+      throw new AppError(401, "User not found", ErrorCode.AUTH_USER_NOT_FOUND);
     }
 
     return user;
   }
 
-  /**
-   * Get user by ID (for internal use)
-   */
   async getUserById(userId: string): Promise<User | null> {
     return this.userRepo.findById(userId);
   }
 
-  /**
-   * Get active sessions for a user
-   */
   async getActiveSessions(userId: string) {
     return this.refreshTokenRepo.getActiveSessionsForUser(userId);
   }
 
-  /**
-   * Revoke a specific session
-   */
   async revokeSession(userId: string, sessionId: string): Promise<void> {
     const sessions =
       await this.refreshTokenRepo.getActiveSessionsForUser(userId);
     const session = sessions.find((s) => s.id === sessionId);
 
     if (!session) {
-      throw new AppError(404, "Session not found", "AUTH_SESSION_NOT_FOUND");
+      throw new AppError(404, "Session not found", ErrorCode.AUTH_SESSION_NOT_FOUND);
     }
 
     await this.refreshTokenRepo.revoke(sessionId);
+
+    audit({ action: "SESSION_REVOKED", userId, metadata: { sessionId } });
   }
 
   /**
-   * Register with email and password
+   * Register with email and password.
+   * Returns a generic message to prevent user enumeration.
    */
   async register(
     dto: RegisterDTO,
   ): Promise<{ message: string }> {
     const existingUser = await this.userRepo.findByEmail(dto.email);
     if (existingUser) {
-      throw new AppError(409, "An account with this email already exists", "AUTH_EMAIL_EXISTS");
+      // Don't reveal whether the email exists. Return same message as success.
+      // Optionally send a "someone tried to register with your email" notification.
+      logger.warn({ email: dto.email }, "Registration attempt for existing email");
+      return {
+        message:
+          "If this email is not already registered, a verification email has been sent.",
+      };
     }
 
     const passwordHash = await bcrypt.hash(dto.password, BCRYPT_ROUNDS);
@@ -193,20 +226,29 @@ export class AuthService {
 
     await this.sendVerificationEmail(user.id, user.email, user.name);
 
+    audit({
+      action: "USER_REGISTERED",
+      userId: user.id,
+      email: user.email,
+    });
+
     return {
       message:
-        "Registration successful. Please check your email to verify your account.",
+        "If this email is not already registered, a verification email has been sent.",
     };
   }
 
   /**
-   * Login with email and password
+   * Login with email and password (with account lockout).
    */
   async login(dto: LoginDTO): Promise<AuthTokens> {
+    this.checkAccountLockout(dto.email);
+
     const user = await this.userRepo.findByEmail(dto.email);
 
     if (!user || !user.passwordHash) {
-      throw new AppError(401, "Invalid email or password", "AUTH_INVALID_CREDENTIALS");
+      this.recordFailedLogin(dto.email, dto.ipAddress);
+      throw new AppError(401, "Invalid email or password", ErrorCode.AUTH_INVALID_CREDENTIALS);
     }
 
     const isPasswordValid = await bcrypt.compare(
@@ -214,39 +256,47 @@ export class AuthService {
       user.passwordHash,
     );
     if (!isPasswordValid) {
-      throw new AppError(401, "Invalid email or password", "AUTH_INVALID_CREDENTIALS");
+      this.recordFailedLogin(dto.email, dto.ipAddress);
+      throw new AppError(401, "Invalid email or password", ErrorCode.AUTH_INVALID_CREDENTIALS);
     }
 
     if (!user.emailVerified) {
       throw new AppError(
         403,
         "Please verify your email address before logging in",
-        "AUTH_EMAIL_NOT_VERIFIED",
+        ErrorCode.AUTH_EMAIL_NOT_VERIFIED,
       );
     }
+
+    // Clear lockout on successful login
+    loginAttempts.delete(dto.email);
+
+    audit({
+      action: "USER_LOGIN",
+      userId: user.id,
+      email: user.email,
+      ip: dto.ipAddress,
+      userAgent: dto.deviceInfo,
+    });
 
     return this.createAuthTokens(user, dto.deviceInfo, dto.ipAddress);
   }
 
-  /**
-   * Verify email with token
-   */
   async verifyEmail(rawToken: string): Promise<{ message: string }> {
     const tokenRecord =
       await this.emailVerificationRepo.findValidByRawToken(rawToken);
     if (!tokenRecord) {
-      throw new AppError(400, "Invalid or expired verification token", "AUTH_VERIFICATION_TOKEN_INVALID");
+      throw new AppError(400, "Invalid or expired verification token", ErrorCode.AUTH_VERIFICATION_TOKEN_INVALID);
     }
 
     await this.emailVerificationRepo.markUsed(tokenRecord.id);
     await this.userRepo.markEmailVerified(tokenRecord.userId);
 
+    audit({ action: "EMAIL_VERIFIED", userId: tokenRecord.userId });
+
     return { message: "Email verified successfully. You can now log in." };
   }
 
-  /**
-   * Resend verification email
-   */
   async resendVerificationEmail(
     email: string,
   ): Promise<{ message: string }> {
@@ -264,9 +314,6 @@ export class AuthService {
     return genericResponse;
   }
 
-  /**
-   * Request password reset
-   */
   async forgotPassword(email: string): Promise<{ message: string }> {
     const genericResponse = {
       message:
@@ -275,7 +322,6 @@ export class AuthService {
 
     const user = await this.userRepo.findByEmail(email);
     if (!user || !user.passwordHash) {
-      // Don't send reset emails to Google-only users (no password to reset)
       return genericResponse;
     }
 
@@ -284,7 +330,7 @@ export class AuthService {
     const resetUrl = `${FRONTEND_URL}/reset-password?token=${rawToken}`;
 
     if (NODE_ENV === "development") {
-      logger.info({ token: rawToken }, "🔑 [DEV] Password reset token");
+      logger.info({ token: rawToken }, "DEV: Password reset token");
     }
 
     await sendEmail(
@@ -293,11 +339,18 @@ export class AuthService {
       passwordResetEmailHtml(user.name, resetUrl),
     );
 
+    audit({
+      action: "PASSWORD_RESET_REQUESTED",
+      userId: user.id,
+      email: user.email,
+    });
+
     return genericResponse;
   }
 
   /**
-   * Reset password with token
+   * Reset password with token.
+   * Uses repository methods inside a transaction (no raw SQL in service layer).
    */
   async resetPassword(
     rawToken: string,
@@ -306,28 +359,21 @@ export class AuthService {
     const tokenRecord =
       await this.passwordResetRepo.findValidByRawToken(rawToken);
     if (!tokenRecord) {
-      throw new AppError(400, "Invalid or expired password reset token", "AUTH_RESET_TOKEN_INVALID");
+      throw new AppError(400, "Invalid or expired password reset token", ErrorCode.AUTH_RESET_TOKEN_INVALID);
     }
 
     const passwordHash = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
 
-    await withTransaction(async (client) => {
-      await client.query(`UPDATE users SET password_hash = $1 WHERE id = $2`, [
-        passwordHash,
-        tokenRecord.userId,
-      ]);
-      await client.query(
-        `UPDATE password_reset_tokens SET used_at = NOW() WHERE id = $1`,
-        [tokenRecord.id],
-      );
-      await client.query(
-        `UPDATE refresh_tokens SET revoked = true WHERE user_id = $1`,
-        [tokenRecord.userId],
-      );
-      await client.query(
-        `UPDATE users SET email_verified = true WHERE id = $1`,
-        [tokenRecord.userId],
-      );
+    await withTransaction(async (client: PoolClient) => {
+      await this.userRepo.updatePasswordHash(tokenRecord.userId, passwordHash, client);
+      await this.passwordResetRepo.markUsed(tokenRecord.id, client);
+      await this.refreshTokenRepo.revokeAllForUser(tokenRecord.userId, client);
+      await this.userRepo.markEmailVerified(tokenRecord.userId, client);
+    });
+
+    audit({
+      action: "PASSWORD_RESET_COMPLETED",
+      userId: tokenRecord.userId,
     });
 
     return {
@@ -337,7 +383,7 @@ export class AuthService {
   }
 
   /**
-   * Set password for OAuth users (account linking)
+   * Set password for OAuth users (account linking).
    */
   async setPassword(
     userId: string,
@@ -345,19 +391,21 @@ export class AuthService {
   ): Promise<{ message: string }> {
     const user = await this.userRepo.findById(userId);
     if (!user) {
-      throw new AppError(404, "User not found", "AUTH_USER_NOT_FOUND");
+      throw new AppError(404, "User not found", ErrorCode.AUTH_USER_NOT_FOUND);
     }
 
     if (user.passwordHash) {
       throw new AppError(
         409,
         "Password is already set. Use forgot-password to change it.",
-        "AUTH_PASSWORD_ALREADY_SET",
+        ErrorCode.AUTH_PASSWORD_ALREADY_SET,
       );
     }
 
     const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
     await this.userRepo.updatePasswordHash(userId, passwordHash);
+
+    audit({ action: "PASSWORD_SET", userId });
 
     return {
       message:
@@ -366,8 +414,47 @@ export class AuthService {
   }
 
   /**
-   * Helper to create auth tokens and store refresh token
+   * Change password (requires knowing old password).
    */
+  async changePassword(
+    userId: string,
+    dto: ChangePasswordDTO,
+  ): Promise<{ message: string }> {
+    const user = await this.userRepo.findById(userId);
+    if (!user) {
+      throw new AppError(404, "User not found", ErrorCode.AUTH_USER_NOT_FOUND);
+    }
+
+    if (!user.passwordHash) {
+      throw new AppError(
+        400,
+        "No password set. Use set-password to create one.",
+        ErrorCode.AUTH_INVALID_CREDENTIALS,
+      );
+    }
+
+    const isValid = await bcrypt.compare(dto.currentPassword, user.passwordHash);
+    if (!isValid) {
+      throw new AppError(401, "Current password is incorrect", ErrorCode.AUTH_INVALID_CREDENTIALS);
+    }
+
+    const newHash = await bcrypt.hash(dto.newPassword, BCRYPT_ROUNDS);
+
+    await withTransaction(async (client: PoolClient) => {
+      await this.userRepo.updatePasswordHash(userId, newHash, client);
+      // Revoke all sessions so user must re-login with new password
+      await this.refreshTokenRepo.revokeAllForUser(userId, client);
+    });
+
+    audit({ action: "PASSWORD_CHANGED", userId });
+
+    return {
+      message: "Password changed successfully. Please log in again.",
+    };
+  }
+
+  // --- Private helpers ---
+
   private async createAuthTokens(
     user: User,
     deviceInfo?: string,
@@ -382,7 +469,6 @@ export class AuthService {
     const { accessToken, refreshToken, refreshTokenHash, expiresIn } =
       generateTokenPair(payload);
 
-    // Store refresh token
     await this.refreshTokenRepo.create({
       userId: user.id,
       tokenHash: refreshTokenHash,
@@ -413,7 +499,7 @@ export class AuthService {
     const verifyUrl = `${FRONTEND_URL}/verify-email?token=${rawToken}`;
 
     if (NODE_ENV === "development") {
-      logger.info({ token: rawToken }, "📧 [DEV] Email verification token");
+      logger.info({ token: rawToken }, "DEV: Email verification token");
     }
 
     await sendEmail(
@@ -421,5 +507,58 @@ export class AuthService {
       "Verify Your Email Address",
       verificationEmailHtml(name, verifyUrl),
     );
+  }
+
+  private checkAccountLockout(email: string): void {
+    const entry = loginAttempts.get(email);
+    if (!entry) return;
+
+    if (entry.lockedUntil > Date.now()) {
+      const minutesLeft = Math.ceil((entry.lockedUntil - Date.now()) / 60000);
+      audit({ action: "ACCOUNT_LOCKED", email, metadata: { minutesLeft } });
+      throw new AppError(
+        429,
+        `Account temporarily locked. Try again in ${minutesLeft} minute(s).`,
+        ErrorCode.AUTH_ACCOUNT_LOCKED,
+      );
+    }
+
+    // Lock expired, clear it
+    if (entry.lockedUntil <= Date.now()) {
+      loginAttempts.delete(email);
+    }
+  }
+
+  private recordFailedLogin(email: string, ip?: string): void {
+    const { LOGIN_MAX_ATTEMPTS, LOGIN_LOCKOUT_MINUTES } = getEnv();
+    const entry = loginAttempts.get(email) || { count: 0, lockedUntil: 0 };
+    entry.count++;
+
+    if (entry.count >= LOGIN_MAX_ATTEMPTS) {
+      entry.lockedUntil = Date.now() + LOGIN_LOCKOUT_MINUTES * 60 * 1000;
+      loginAttempts.set(email, entry);
+
+      audit({
+        action: "ACCOUNT_LOCKED",
+        email,
+        ip,
+        metadata: { attempts: entry.count, lockoutMinutes: LOGIN_LOCKOUT_MINUTES },
+      });
+
+      logger.warn(
+        { email, attempts: entry.count },
+        "Account locked due to failed login attempts",
+      );
+      return;
+    }
+
+    loginAttempts.set(email, entry);
+
+    audit({
+      action: "USER_LOGIN_FAILED",
+      email,
+      ip,
+      metadata: { attemptNumber: entry.count },
+    });
   }
 }

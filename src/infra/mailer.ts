@@ -29,6 +29,8 @@ export function getMailer(): Transporter {
   return transporter;
 }
 
+// TODO: For production scale, consider using a background email queue (e.g. BullMQ)
+// to avoid blocking request handlers on SMTP round-trips.
 export async function sendEmail(
   to: string,
   subject: string,

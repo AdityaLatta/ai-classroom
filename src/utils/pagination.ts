@@ -5,6 +5,7 @@ export interface PaginationMeta {
   limit: number;
   offset: number;
   hasMore: boolean;
+  nextCursor?: string;
 }
 
 export interface PaginatedResult<T> {

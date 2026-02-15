@@ -1,6 +1,7 @@
 import { OpenAPIRegistry } from "@asteasolutions/zod-to-openapi";
 import {
   createCourseSchema,
+  updateCourseSchema,
   courseIdSchema,
   listCoursesQuerySchema,
 } from "./course.schemas";
@@ -71,6 +72,44 @@ courseRegistry.registerPath({
   responses: {
     200: { description: "Course details", content: { "application/json": { schema: courseRef as any } } },
     401: { description: "Unauthorized" },
+    404: { description: "Course not found" },
+  },
+});
+
+courseRegistry.registerPath({
+  method: "put",
+  path: "/courses/{id}",
+  tags: ["Courses"],
+  summary: "Update a course",
+  description: "Update a course (owner only)",
+  security: [{ BearerAuth: [] }],
+  request: {
+    params: courseIdSchema,
+    body: { content: { "application/json": { schema: updateCourseSchema } }, required: true },
+  },
+  responses: {
+    200: { description: "Course updated successfully", content: { "application/json": { schema: courseRef as any } } },
+    400: { description: "Validation error", content: { "application/json": { schema: validationErrorRef as any } } },
+    401: { description: "Unauthorized" },
+    403: { description: "Forbidden — only the course owner can update" },
+    404: { description: "Course not found" },
+  },
+});
+
+courseRegistry.registerPath({
+  method: "delete",
+  path: "/courses/{id}",
+  tags: ["Courses"],
+  summary: "Delete a course",
+  description: "Delete a course (owner only)",
+  security: [{ BearerAuth: [] }],
+  request: {
+    params: courseIdSchema,
+  },
+  responses: {
+    200: { description: "Course deleted successfully" },
+    401: { description: "Unauthorized" },
+    403: { description: "Forbidden — only the course owner can delete" },
     404: { description: "Course not found" },
   },
 });

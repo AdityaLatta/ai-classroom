@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from "express";
+import { ZodError } from "zod";
 import { AppError } from "../utils/AppError";
 import { logger } from "../utils/logger";
 import { captureError } from "../infra/sentry";
@@ -11,6 +12,19 @@ export function errorHandler(
 ): void {
   const requestId = req.requestId;
   const log = req.log || logger;
+
+  if (err instanceof ZodError) {
+    log.warn({ requestId }, "Zod validation error leaked to error handler");
+    res.status(400).json({
+      error: "Validation failed",
+      requestId,
+      details: err.errors.map((e) => ({
+        field: e.path.join("."),
+        message: e.message,
+      })),
+    });
+    return;
+  }
 
   if (err instanceof AppError) {
     // Operational errors - expected errors we can handle

@@ -5,6 +5,7 @@ import { initDb, closeDb } from "./infra/db";
 import { initWebSocket } from "./infra/websocket";
 import { initLogger, logger } from "./utils/logger";
 import { startTokenCleanup, stopTokenCleanup } from "./jobs/tokenCleanup";
+import { startLoginAttemptsCleanup, stopLoginAttemptsCleanup } from "./modules/auth/auth.service";
 
 async function startServer() {
   loadEnv();
@@ -16,25 +17,46 @@ async function startServer() {
 
   initWebSocket(server);
   startTokenCleanup();
+  startLoginAttemptsCleanup();
 
-  const { PORT } = getEnv();
+  const { PORT, SHUTDOWN_TIMEOUT_MS } = getEnv();
 
   server.listen(PORT, () => {
     logger.info({ port: PORT }, "Server started");
   });
 
-  process.on("SIGTERM", shutdown);
-  process.on("SIGINT", shutdown);
+  let isShuttingDown = false;
 
-  function shutdown() {
-    logger.info("Shutting down server...");
+  function shutdown(signal: string) {
+    if (isShuttingDown) return;
+    isShuttingDown = true;
+
+    logger.info({ signal }, "Graceful shutdown initiated");
     stopTokenCleanup();
+    stopLoginAttemptsCleanup();
+
+    // Force exit after timeout to prevent hanging
+    const forceTimer = setTimeout(() => {
+      logger.error("Graceful shutdown timed out, forcing exit");
+      process.exit(1);
+    }, SHUTDOWN_TIMEOUT_MS);
+    forceTimer.unref();
+
+    // Stop accepting new connections, then drain existing
     server.close(async () => {
-      await closeDb();
-      logger.info("Server stopped");
-      process.exit(0);
+      try {
+        await closeDb();
+        logger.info("Server stopped gracefully");
+        process.exit(0);
+      } catch (err) {
+        logger.error({ err }, "Error during shutdown");
+        process.exit(1);
+      }
     });
   }
+
+  process.on("SIGTERM", () => shutdown("SIGTERM"));
+  process.on("SIGINT", () => shutdown("SIGINT"));
 }
 
 startServer().catch((err) => {

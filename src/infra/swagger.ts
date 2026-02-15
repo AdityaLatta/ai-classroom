@@ -36,6 +36,7 @@ const PaginationMetaSchema = z
     limit: z.number().int().openapi({ description: "Items per page" }),
     offset: z.number().int().openapi({ description: "Current offset" }),
     hasMore: z.boolean().openapi({ description: "Whether more items exist" }),
+    nextCursor: z.string().optional().openapi({ description: "Cursor for the next page" }),
   })
   .openapi("PaginationMeta");
 
@@ -56,6 +57,7 @@ const CourseSchema = z
     description: z.string(),
     instructorId: z.string().uuid(),
     createdAt: z.string().datetime(),
+    updatedAt: z.string().datetime(),
   })
   .openapi("Course");
 

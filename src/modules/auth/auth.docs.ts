@@ -1,5 +1,6 @@
 import { OpenAPIRegistry } from "@asteasolutions/zod-to-openapi";
 import { z } from "zod";
+import "../../infra/openapi";
 import {
   googleLoginSchema,
   refreshTokenSchema,
@@ -12,7 +13,9 @@ import {
   forgotPasswordSchema,
   resetPasswordSchema,
   setPasswordSchema,
+  changePasswordSchema,
 } from "./auth.schemas";
+
 
 export const authRegistry = new OpenAPIRegistry();
 
@@ -50,9 +53,9 @@ authRegistry.registerPath({
   path: "/auth/refresh",
   tags: ["Auth"],
   summary: "Refresh access token",
-  description: "Exchange a valid refresh token for new access and refresh tokens",
+  description: "Exchange a valid refresh token for new access and refresh tokens. Accepts token from body or httpOnly cookie.",
   request: {
-    body: { content: { "application/json": { schema: refreshTokenSchema } }, required: true },
+    body: { content: { "application/json": { schema: refreshTokenSchema } }, required: false },
   },
   responses: {
     200: { description: "New tokens issued", content: { "application/json": { schema: authTokensRef as any } } },
@@ -65,9 +68,9 @@ authRegistry.registerPath({
   path: "/auth/logout",
   tags: ["Auth"],
   summary: "Logout current session",
-  description: "Revoke the provided refresh token",
+  description: "Revoke the provided refresh token and clear cookie",
   request: {
-    body: { content: { "application/json": { schema: logoutSchema } }, required: true },
+    body: { content: { "application/json": { schema: logoutSchema } }, required: false },
   },
   responses: {
     200: { description: "Successfully logged out", content: { "application/json": { schema: messageResponse } } },
@@ -148,9 +151,8 @@ authRegistry.registerPath({
     body: { content: { "application/json": { schema: registerSchema } }, required: true },
   },
   responses: {
-    201: { description: "Registration successful" },
+    201: { description: "Registration successful (generic response to prevent enumeration)" },
     400: { description: "Validation error", content: { "application/json": { schema: validationErrorRef as any } } },
-    409: { description: "Email already exists" },
   },
 });
 
@@ -167,6 +169,7 @@ authRegistry.registerPath({
     200: { description: "Successfully authenticated", content: { "application/json": { schema: authTokensRef as any } } },
     401: { description: "Invalid email or password" },
     403: { description: "Email not verified" },
+    429: { description: "Account temporarily locked" },
   },
 });
 
@@ -242,5 +245,22 @@ authRegistry.registerPath({
     200: { description: "Password set successfully" },
     401: { description: "Unauthorized" },
     409: { description: "Password already set" },
+  },
+});
+
+authRegistry.registerPath({
+  method: "post",
+  path: "/auth/change-password",
+  tags: ["Auth"],
+  summary: "Change password",
+  description: "Change password for users who already have one set. Requires current password.",
+  security: [{ BearerAuth: [] }],
+  request: {
+    body: { content: { "application/json": { schema: changePasswordSchema } }, required: true },
+  },
+  responses: {
+    200: { description: "Password changed successfully. All sessions revoked." },
+    400: { description: "No password set (use set-password instead)" },
+    401: { description: "Current password is incorrect" },
   },
 });

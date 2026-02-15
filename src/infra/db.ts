@@ -5,6 +5,9 @@ import { logger } from "../utils/logger";
 
 let pool: Pool | null = null;
 
+const MAX_RETRIES = 5;
+const RETRY_BASE_MS = 1000;
+
 export function getDb(): Pool {
   if (!pool) {
     throw new Error("Database not initialized");
@@ -12,31 +15,54 @@ export function getDb(): Pool {
   return pool;
 }
 
-export async function initDb() {
+export async function initDb(): Promise<void> {
   const {
     DATABASE_URL,
     DB_POOL_MAX,
     DB_POOL_IDLE_TIMEOUT_MS,
     DB_POOL_CONNECTION_TIMEOUT_MS,
     DB_SSL,
+    DB_SSL_CA,
   } = getEnv();
 
   const requiresSsl = DB_SSL || DATABASE_URL.includes("sslmode=");
+
+  let sslConfig: { rejectUnauthorized: boolean; ca?: string } | undefined;
+  if (requiresSsl) {
+    sslConfig = {
+      rejectUnauthorized: !!DB_SSL_CA,
+      ...(DB_SSL_CA ? { ca: DB_SSL_CA } : {}),
+    };
+  }
 
   pool = new Pool({
     connectionString: DATABASE_URL,
     max: DB_POOL_MAX,
     idleTimeoutMillis: DB_POOL_IDLE_TIMEOUT_MS,
     connectionTimeoutMillis: DB_POOL_CONNECTION_TIMEOUT_MS,
-    ssl: requiresSsl ? { rejectUnauthorized: false } : undefined,
+    ssl: sslConfig,
   });
 
   pool.on("error", (err) => {
     logger.error({ err }, "Unexpected database pool error");
   });
 
-  await pool.query("SELECT 1");
-  logger.info("Database connected");
+  // Retry connection with exponential backoff
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      await pool.query("SELECT 1");
+      logger.info("Database connected");
+      return;
+    } catch (err) {
+      if (attempt === MAX_RETRIES) {
+        logger.fatal({ err, attempt }, "Database connection failed after all retries");
+        throw err;
+      }
+      const delayMs = RETRY_BASE_MS * Math.pow(2, attempt - 1);
+      logger.warn({ err, attempt, nextRetryMs: delayMs }, "Database connection failed, retrying...");
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
+  }
 }
 
 export async function healthCheck(): Promise<boolean> {

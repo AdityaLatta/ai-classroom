@@ -1,7 +1,7 @@
 import { z } from "zod";
-import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
-
-extendZodWithOpenApi(z);
+import "../../infra/openapi";
+import { emailSchema, passwordSchema } from "../../infra/openapi";
+import { stripHtml } from "../../utils/sanitize";
 
 export const googleLoginSchema = z
   .object({
@@ -17,7 +17,8 @@ export const refreshTokenSchema = z
     refreshToken: z
       .string()
       .min(1, "Refresh token is required")
-      .openapi({ description: "Valid refresh token" }),
+      .optional()
+      .openapi({ description: "Valid refresh token (optional if sent via cookie)" }),
   })
   .openapi("RefreshTokenInput");
 
@@ -26,7 +27,8 @@ export const logoutSchema = z
     refreshToken: z
       .string()
       .min(1, "Refresh token is required")
-      .openapi({ description: "Refresh token to revoke" }),
+      .optional()
+      .openapi({ description: "Refresh token to revoke (optional if sent via cookie)" }),
   })
   .openapi("LogoutInput");
 
@@ -41,30 +43,21 @@ export const sessionIdParamSchema = z
 
 // --- Email/Password Auth Schemas ---
 
-const passwordSchema = z
-  .string()
-  .min(8, "Password must be at least 8 characters")
-  .max(72, "Password must be at most 72 characters")
-  .regex(
-    /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/,
-    "Password must contain at least one lowercase letter, one uppercase letter, and one digit",
-  );
-
 export const registerSchema = z
   .object({
-    email: z.string().email("Invalid email address").openapi({ format: "email" }),
+    email: emailSchema,
     password: passwordSchema.openapi({
       description: "Min 8 chars, must contain uppercase, lowercase, and digit",
       minLength: 8,
       maxLength: 72,
     }),
-    name: z.string().min(1, "Name is required").max(255),
+    name: z.string().min(1, "Name is required").max(255).transform(stripHtml),
   })
   .openapi("RegisterInput");
 
 export const loginSchema = z
   .object({
-    email: z.string().email("Invalid email address").openapi({ format: "email" }),
+    email: emailSchema,
     password: z.string().min(1, "Password is required"),
   })
   .openapi("LoginInput");
@@ -77,13 +70,13 @@ export const verifyEmailSchema = z
 
 export const resendVerificationSchema = z
   .object({
-    email: z.string().email("Invalid email address").openapi({ format: "email" }),
+    email: emailSchema,
   })
   .openapi("ResendVerificationInput");
 
 export const forgotPasswordSchema = z
   .object({
-    email: z.string().email("Invalid email address").openapi({ format: "email" }),
+    email: emailSchema,
   })
   .openapi("ForgotPasswordInput");
 
@@ -108,6 +101,17 @@ export const setPasswordSchema = z
   })
   .openapi("SetPasswordInput");
 
+export const changePasswordSchema = z
+  .object({
+    currentPassword: z.string().min(1, "Current password is required"),
+    newPassword: passwordSchema.openapi({
+      description: "New password",
+      minLength: 8,
+      maxLength: 72,
+    }),
+  })
+  .openapi("ChangePasswordInput");
+
 export type GoogleLoginInput = z.infer<typeof googleLoginSchema>;
 export type RefreshTokenInput = z.infer<typeof refreshTokenSchema>;
 export type LogoutInput = z.infer<typeof logoutSchema>;
@@ -118,3 +122,4 @@ export type ResendVerificationInput = z.infer<typeof resendVerificationSchema>;
 export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
 export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
 export type SetPasswordInput = z.infer<typeof setPasswordSchema>;
+export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
