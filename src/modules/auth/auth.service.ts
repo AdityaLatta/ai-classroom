@@ -18,10 +18,7 @@ import { withTransaction } from "../../infra/db";
 import { AppError } from "../../utils/AppError";
 import { ErrorCode } from "../../utils/errorCodes";
 import { audit } from "../../utils/audit";
-import { IUserRepository, User } from "../users/user.repository";
-import { IRefreshTokenRepository } from "./refreshToken.repository";
-import { IEmailVerificationRepository } from "./emailVerification.repository";
-import { IPasswordResetRepository } from "./passwordReset.repository";
+import { IUserRepository, User } from "../users/user.types";
 import {
   AuthTokens,
   LoginWithGoogleDTO,
@@ -29,6 +26,9 @@ import {
   RegisterDTO,
   LoginDTO,
   ChangePasswordDTO,
+  IRefreshTokenRepository,
+  IEmailVerificationRepository,
+  IPasswordResetRepository,
 } from "./auth.types";
 
 export type { AuthTokens };

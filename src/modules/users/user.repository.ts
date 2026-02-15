@@ -1,7 +1,9 @@
 import { z } from "zod";
 import { Pool, PoolClient } from "pg";
 import { getDb } from "../../infra/db";
-import { UserRole } from "../../auth/jwt";
+import { User, CreateUserDTO, IUserRepository } from "./user.types";
+
+export type { User, CreateUserDTO, IUserRepository };
 
 const userRowSchema = z.object({
   id: z.string(),
@@ -14,34 +16,6 @@ const userRowSchema = z.object({
   created_at: z.coerce.date(),
   updated_at: z.coerce.date(),
 });
-
-export interface User {
-  id: string;
-  email: string;
-  name: string;
-  role: UserRole;
-  passwordHash: string | null;
-  emailVerified: boolean;
-  authProvider: "google" | "email";
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-export interface CreateUserDTO {
-  email: string;
-  name: string;
-  role?: UserRole;
-}
-
-export interface IUserRepository {
-  findById(id: string): Promise<User | null>;
-  findByEmail(email: string): Promise<User | null>;
-  findOrCreate(data: CreateUserDTO): Promise<User>;
-  update(id: string, data: Partial<Pick<User, "name" | "role">>): Promise<User | null>;
-  createWithPassword(data: { email: string; name: string; passwordHash: string }): Promise<User>;
-  updatePasswordHash(userId: string, passwordHash: string, client?: PoolClient): Promise<void>;
-  markEmailVerified(userId: string, client?: PoolClient): Promise<void>;
-}
 
 const USER_COLUMNS = "id, email, name, role, password_hash, email_verified, auth_provider, created_at, updated_at";
 

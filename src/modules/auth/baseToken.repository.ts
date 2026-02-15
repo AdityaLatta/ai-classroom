@@ -3,6 +3,9 @@ import { z } from "zod";
 import { Pool, PoolClient } from "pg";
 import { getDb } from "../../infra/db";
 import { createHashedToken } from "./tokenUtils";
+import { TokenRecord } from "./auth.types";
+
+export type { TokenRecord };
 
 const tokenRowSchema = z.object({
   id: z.string(),
@@ -12,15 +15,6 @@ const tokenRowSchema = z.object({
   used_at: z.coerce.date().nullable(),
   created_at: z.coerce.date(),
 });
-
-export interface TokenRecord {
-  id: string;
-  userId: string;
-  tokenHash: string;
-  expiresAt: Date;
-  usedAt: Date | null;
-  createdAt: Date;
-}
 
 export abstract class BaseTokenRepository {
   constructor(

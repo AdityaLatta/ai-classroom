@@ -1,14 +1,10 @@
-import { PoolClient } from "pg";
-import { BaseTokenRepository, TokenRecord } from "./baseToken.repository";
+import { BaseTokenRepository } from "./baseToken.repository";
+import {
+  PasswordResetToken,
+  IPasswordResetRepository,
+} from "./auth.types";
 
-export type PasswordResetToken = TokenRecord;
-
-export interface IPasswordResetRepository {
-  create(userId: string): Promise<string>;
-  findValidByRawToken(rawToken: string): Promise<PasswordResetToken | null>;
-  markUsed(id: string, client?: PoolClient): Promise<void>;
-  deleteExpired(): Promise<number>;
-}
+export type { PasswordResetToken, IPasswordResetRepository };
 
 export class PasswordResetRepository
   extends BaseTokenRepository

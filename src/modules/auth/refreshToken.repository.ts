@@ -2,6 +2,13 @@ import { z } from "zod";
 import { Pool, PoolClient } from "pg";
 import { getDb } from "../../infra/db";
 import { getRefreshTokenExpiry } from "../../auth/jwt";
+import {
+  RefreshToken,
+  CreateRefreshTokenDTO,
+  IRefreshTokenRepository,
+} from "./auth.types";
+
+export type { RefreshToken, CreateRefreshTokenDTO, IRefreshTokenRepository };
 
 const refreshTokenRowSchema = z.object({
   id: z.string(),
@@ -14,36 +21,6 @@ const refreshTokenRowSchema = z.object({
   created_at: z.coerce.date(),
   last_used_at: z.coerce.date().nullable(),
 });
-
-export interface RefreshToken {
-  id: string;
-  userId: string;
-  tokenHash: string;
-  expiresAt: Date;
-  revoked: boolean;
-  deviceInfo: string | null;
-  ipAddress: string | null;
-  createdAt: Date;
-  lastUsedAt: Date | null;
-}
-
-export interface CreateRefreshTokenDTO {
-  userId: string;
-  tokenHash: string;
-  deviceInfo?: string;
-  ipAddress?: string;
-}
-
-export interface IRefreshTokenRepository {
-  create(dto: CreateRefreshTokenDTO): Promise<RefreshToken>;
-  findValidByHash(tokenHash: string): Promise<RefreshToken | null>;
-  updateLastUsed(id: string): Promise<void>;
-  revoke(id: string): Promise<void>;
-  revokeByHash(tokenHash: string): Promise<void>;
-  revokeAllForUser(userId: string, client?: PoolClient): Promise<void>;
-  deleteExpired(): Promise<number>;
-  getActiveSessionsForUser(userId: string): Promise<RefreshToken[]>;
-}
 
 const REFRESH_TOKEN_COLUMNS = "id, user_id, token_hash, expires_at, revoked, device_info, ip_address, created_at, last_used_at";
 

@@ -1,14 +1,10 @@
-import { PoolClient } from "pg";
-import { BaseTokenRepository, TokenRecord } from "./baseToken.repository";
+import { BaseTokenRepository } from "./baseToken.repository";
+import {
+  EmailVerificationToken,
+  IEmailVerificationRepository,
+} from "./auth.types";
 
-export type EmailVerificationToken = TokenRecord;
-
-export interface IEmailVerificationRepository {
-  create(userId: string): Promise<string>;
-  findValidByRawToken(rawToken: string): Promise<EmailVerificationToken | null>;
-  markUsed(id: string, client?: PoolClient): Promise<void>;
-  deleteExpired(): Promise<number>;
-}
+export type { EmailVerificationToken, IEmailVerificationRepository };
 
 export class EmailVerificationRepository
   extends BaseTokenRepository
