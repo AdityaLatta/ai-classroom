@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import { CourseService } from "./course.service";
+import { AppResponse } from "../../utils/AppResponse";
 import { asyncHandler } from "../../utils/asyncHandler";
 import { ListCoursesQuery } from "./course.schemas";
 import { audit } from "../../utils/audit";
@@ -20,7 +21,7 @@ export class CourseController {
       },
     });
 
-    res.json(result);
+    AppResponse.paginated(res, result.data, result.meta);
   });
 
   createCourse = asyncHandler(async (req: Request, res: Response) => {
@@ -33,13 +34,13 @@ export class CourseController {
       metadata: { courseId: course.id, title: course.title },
     });
 
-    res.status(201).json({ data: course });
+    AppResponse.created(res, course);
   });
 
   getCourse = asyncHandler(async (req: Request, res: Response) => {
     const { id } = req.validated.params as { id: string };
     const course = await this.service.getCourse(id);
-    res.json({ data: course });
+    AppResponse.ok(res, course);
   });
 
   updateCourse = asyncHandler(async (req: Request, res: Response) => {
@@ -53,7 +54,7 @@ export class CourseController {
       metadata: { courseId: course.id, title: course.title },
     });
 
-    res.json({ data: course });
+    AppResponse.ok(res, course);
   });
 
   deleteCourse = asyncHandler(async (req: Request, res: Response) => {
@@ -67,6 +68,6 @@ export class CourseController {
       metadata: { courseId: id },
     });
 
-    res.json({ message: "Course deleted successfully" });
+    AppResponse.message(res, "Course deleted successfully");
   });
 }

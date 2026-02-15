@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { AuthService, AuthTokens } from "./auth.service";
 import { AppError } from "../../utils/AppError";
+import { AppResponse } from "../../utils/AppResponse";
 import { ErrorCode } from "../../utils/errorCodes";
 import { asyncHandler } from "../../utils/asyncHandler";
 import { getEnv } from "../../config/env";
@@ -30,10 +31,10 @@ function clearRefreshTokenCookie(res: Response): void {
   res.clearCookie(REFRESH_TOKEN_COOKIE, { path: COOKIE_PATH });
 }
 
-function sendAuthResponse(res: Response, result: AuthTokens, status = 200): void {
+function sendAuthResponse(res: Response, result: AuthTokens): void {
   setRefreshTokenCookie(res, result.refreshToken);
   // Also include refreshToken in body for clients that can't use cookies (mobile apps)
-  res.status(status).json({ data: result });
+  AppResponse.ok(res, result);
 }
 
 export class AuthController {
@@ -84,7 +85,7 @@ export class AuthController {
     await this.authService.logout(refreshToken);
     clearRefreshTokenCookie(res);
 
-    res.json({ message: "Logged out successfully" });
+    AppResponse.message(res, "Logged out successfully");
   });
 
   logoutAll = asyncHandler(async (req: Request, res: Response) => {
@@ -93,7 +94,7 @@ export class AuthController {
     await this.authService.logoutAll(userId);
     clearRefreshTokenCookie(res);
 
-    res.json({ message: "Logged out from all devices" });
+    AppResponse.message(res, "Logged out from all devices");
   });
 
   me = asyncHandler(async (req: Request, res: Response) => {
@@ -105,16 +106,14 @@ export class AuthController {
     }
 
     // Response DTO - never expose passwordHash or internal fields
-    res.json({
-      data: {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        role: user.role,
-        emailVerified: user.emailVerified,
-        authProvider: user.authProvider,
-        createdAt: user.createdAt,
-      },
+    AppResponse.ok(res, {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      role: user.role,
+      emailVerified: user.emailVerified,
+      authProvider: user.authProvider,
+      createdAt: user.createdAt,
     });
   });
 
@@ -124,15 +123,13 @@ export class AuthController {
     const sessions = await this.authService.getActiveSessions(userId);
 
     // Response DTO - strip tokenHash
-    res.json({
-      data: sessions.map((session) => ({
-        id: session.id,
-        deviceInfo: session.deviceInfo,
-        ipAddress: session.ipAddress,
-        createdAt: session.createdAt,
-        lastUsedAt: session.lastUsedAt,
-      })),
-    });
+    AppResponse.ok(res, sessions.map((session) => ({
+      id: session.id,
+      deviceInfo: session.deviceInfo,
+      ipAddress: session.ipAddress,
+      createdAt: session.createdAt,
+      lastUsedAt: session.lastUsedAt,
+    })));
   });
 
   revokeSession = asyncHandler(async (req: Request, res: Response) => {
@@ -141,7 +138,7 @@ export class AuthController {
 
     await this.authService.revokeSession(userId, sessionId);
 
-    res.json({ message: "Session revoked" });
+    AppResponse.message(res, "Session revoked");
   });
 
   register = asyncHandler(async (req: Request, res: Response) => {
@@ -151,7 +148,7 @@ export class AuthController {
       password,
       name,
     });
-    res.status(201).json(result);
+    AppResponse.message(res, result.message, 201);
   });
 
   login = asyncHandler(async (req: Request, res: Response) => {
@@ -170,32 +167,32 @@ export class AuthController {
   verifyEmail = asyncHandler(async (req: Request, res: Response) => {
     const { token } = req.body;
     const result = await this.authService.verifyEmail(token);
-    res.json(result);
+    AppResponse.message(res, result.message);
   });
 
   resendVerification = asyncHandler(async (req: Request, res: Response) => {
     const { email } = req.body;
     const result = await this.authService.resendVerificationEmail(email);
-    res.json(result);
+    AppResponse.message(res, result.message);
   });
 
   forgotPassword = asyncHandler(async (req: Request, res: Response) => {
     const { email } = req.body;
     const result = await this.authService.forgotPassword(email);
-    res.json(result);
+    AppResponse.message(res, result.message);
   });
 
   resetPassword = asyncHandler(async (req: Request, res: Response) => {
     const { token, password } = req.body;
     const result = await this.authService.resetPassword(token, password);
-    res.json(result);
+    AppResponse.message(res, result.message);
   });
 
   setPassword = asyncHandler(async (req: Request, res: Response) => {
     const userId = req.user!.id;
     const { password } = req.body;
     const result = await this.authService.setPassword(userId, password);
-    res.json(result);
+    AppResponse.message(res, result.message);
   });
 
   changePassword = asyncHandler(async (req: Request, res: Response) => {
@@ -206,6 +203,6 @@ export class AuthController {
       newPassword,
     });
     clearRefreshTokenCookie(res);
-    res.json(result);
+    AppResponse.message(res, result.message);
   });
 }
