@@ -4,11 +4,7 @@ import { loadEnv, getEnv } from "./config/env";
 import { initDb, closeDb } from "./infra/db";
 import { initWebSocket } from "./infra/websocket";
 import { initLogger, logger } from "./utils/logger";
-import { TokenCleanupJob } from "./jobs/tokenCleanup";
-import { RefreshTokenRepository } from "./modules/auth/refreshToken.repository";
-import { EmailVerificationRepository } from "./modules/auth/emailVerification.repository";
-import { PasswordResetRepository } from "./modules/auth/passwordReset.repository";
-import { loginAttemptTracker } from "./modules/auth/auth.routes";
+import { authModule } from "./modules/auth/auth.module";
 
 async function startServer() {
   loadEnv();
@@ -19,13 +15,7 @@ async function startServer() {
   const server = http.createServer(app);
 
   initWebSocket(server);
-  const tokenCleanupJob = new TokenCleanupJob(
-    new RefreshTokenRepository(),
-    new EmailVerificationRepository(),
-    new PasswordResetRepository(),
-  );
-  tokenCleanupJob.start();
-  loginAttemptTracker.startCleanup();
+  authModule.start();
 
   const { PORT, SHUTDOWN_TIMEOUT_MS } = getEnv();
 
@@ -40,8 +30,7 @@ async function startServer() {
     isShuttingDown = true;
 
     logger.info({ signal }, "Graceful shutdown initiated");
-    tokenCleanupJob.stop();
-    loginAttemptTracker.stopCleanup();
+    authModule.stop();
 
     // Force exit after timeout to prevent hanging
     const forceTimer = setTimeout(() => {

@@ -4,8 +4,8 @@ import helmet from "helmet";
 import cookieParser from "cookie-parser";
 
 import { getEnv } from "./config/env";
-import { authRouter } from "./modules/auth/auth.routes";
-import { courseRouter } from "./modules/courses/course.routes";
+import { authRouter } from "./modules/auth/auth.module";
+import { courseRouter } from "./modules/courses/course.module";
 import { errorHandler } from "./middlewares/errorHandler";
 import { apiLimiter } from "./middlewares/rateLimiter";
 import { requestIdMiddleware } from "./middlewares/requestId";
