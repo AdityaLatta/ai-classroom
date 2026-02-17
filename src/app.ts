@@ -102,16 +102,6 @@ export function createApp() {
   app.use("/api/v1/auth", authRouter);
   app.use("/api/v1/courses", courseRouter);
 
-  // ---- Backward-compatible routes (deprecated, alias to v1) ----
-  const deprecation: express.RequestHandler = (_req, res, next) => {
-    res.set("Deprecation", "true");
-    res.set("Sunset", "2026-12-31T23:59:59Z");
-    res.set("Link", '</api/v1/>; rel="successor-version"');
-    next();
-  };
-  app.use("/api/auth", deprecation, authRouter);
-  app.use("/api/courses", deprecation, courseRouter);
-
   // ---- 404 ----
   app.use((req, res) => {
     res.status(404).json({
