@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { Pool, PoolClient } from "pg";
-import { getDb } from "@/infra/db";
+import { getDb } from "@/infra";
 import { getRefreshTokenExpiry } from "@/auth/jwt";
 import {
   RefreshToken,

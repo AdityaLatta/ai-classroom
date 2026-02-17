@@ -1,9 +1,8 @@
 import http from "http";
 import { createApp } from "@/app";
-import { loadEnv, getEnv } from "@/config/env";
-import { initDb, closeDb } from "@/infra/db";
-import { initWebSocket } from "@/infra/websocket";
-import { initLogger, logger } from "@/utils/logger";
+import { loadEnv, getEnv } from "@/config";
+import { initDb, closeDb, initWebSocket } from "@/infra";
+import { initLogger, logger } from "@/utils";
 import { authModule } from "@/modules/auth/auth.module";
 
 async function startServer() {

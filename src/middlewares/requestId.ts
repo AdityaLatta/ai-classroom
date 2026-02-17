@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import { randomUUID } from "crypto";
-import { createChildLogger } from "@/utils/logger";
+import { createChildLogger } from "@/utils";
 
 export const REQUEST_ID_HEADER = "X-Request-ID";
 

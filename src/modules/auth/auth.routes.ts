@@ -1,8 +1,6 @@
 import { Router } from "express";
 import { AuthController } from "./auth.controller";
-import { validate, validateParams } from "@/middlewares/validate";
-import { requireAuth } from "@/middlewares/requireAuth";
-import { authLimiter, strictLimiter } from "@/middlewares/rateLimiter";
+import { validate, validateParams, requireAuth, authLimiter, strictLimiter } from "@/middlewares";
 import {
   googleLoginSchema,
   sessionIdParamSchema,

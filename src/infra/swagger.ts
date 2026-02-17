@@ -5,7 +5,7 @@ import {
 import { z } from "zod";
 import swaggerUi from "swagger-ui-express";
 import { Express } from "express";
-import { getEnv } from "@/config/env";
+import { getEnv } from "@/config";
 import { authRegistry } from "@/modules/auth/auth.docs";
 import { courseRegistry } from "@/modules/courses/course.docs";
 

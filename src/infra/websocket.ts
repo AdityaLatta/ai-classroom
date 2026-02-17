@@ -1,7 +1,7 @@
 import { Server as HttpServer } from "http";
 import WebSocket, { WebSocketServer } from "ws";
 import { verifyAccessToken } from "@/auth/jwt";
-import { logger, createChildLogger } from "@/utils/logger";
+import { logger, createChildLogger } from "@/utils";
 
 interface AuthenticatedSocket extends WebSocket {
   userId?: string;

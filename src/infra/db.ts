@@ -1,7 +1,7 @@
 // pg Pool is used for runtime queries. Knex is used only for migrations (knexfile.ts).
 import { Pool, PoolClient } from "pg";
-import { getEnv } from "@/config/env";
-import { logger } from "@/utils/logger";
+import { getEnv } from "@/config";
+import { logger } from "@/utils";
 
 let pool: Pool | null = null;
 

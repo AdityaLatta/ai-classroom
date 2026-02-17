@@ -1,6 +1,6 @@
 import { z } from "zod";
 import "@/infra/openapi";
-import { stripHtml } from "@/utils/sanitize";
+import { stripHtml } from "@/utils";
 
 export const createCourseSchema = z
   .object({

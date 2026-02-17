@@ -1,5 +1,5 @@
 import rateLimit from "express-rate-limit";
-import { ErrorCode } from "@/utils/errorCodes";
+import { ErrorCode } from "@/utils";
 
 function createLimiter(windowMs: number, max: number, message: string) {
   return rateLimit({

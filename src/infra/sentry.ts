@@ -1,7 +1,7 @@
 import * as Sentry from "@sentry/node";
 import { Express } from "express";
-import { getEnv } from "@/config/env";
-import { logger } from "@/utils/logger";
+import { getEnv } from "@/config";
+import { logger } from "@/utils";
 
 let initialized = false;
 

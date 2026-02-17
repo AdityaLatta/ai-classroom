@@ -1,8 +1,7 @@
 import { z } from "zod";
-import { getDb } from "@/infra/db";
+import { getDb } from "@/infra";
 import { CreateCourseDTO, UpdateCourseDTO, Course, ListCoursesOptions, ICourseRepository } from "./course.types";
-import { PaginatedResult } from "@/utils/pagination";
-import { escapeLikePattern } from "@/utils/sanitize";
+import { PaginatedResult, escapeLikePattern } from "@/utils";
 
 const courseRowSchema = z.object({
   id: z.string(),

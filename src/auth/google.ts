@@ -1,7 +1,7 @@
 // src/auth/google.ts
 import { OAuth2Client } from "google-auth-library";
-import { getEnv } from "@/config/env";
-import { AppError } from "@/utils/AppError";
+import { getEnv } from "@/config";
+import { AppError } from "@/utils";
 
 let client: OAuth2Client | null = null;
 

@@ -3,20 +3,25 @@ import cors from "cors";
 import helmet from "helmet";
 import cookieParser from "cookie-parser";
 
-import { getEnv } from "@/config/env";
+import { getEnv } from "@/config";
 import { authRouter } from "@/modules/auth/auth.module";
 import { courseRouter } from "@/modules/courses/course.module";
-import { errorHandler } from "@/middlewares/errorHandler";
-import { apiLimiter } from "@/middlewares/rateLimiter";
-import { requestIdMiddleware } from "@/middlewares/requestId";
-import { requestTimeout } from "@/middlewares/requestTimeout";
-import { httpLogger } from "@/middlewares/httpLogger";
-import { initSentry, setupSentryErrorHandler } from "@/infra/sentry";
-import { setupSwagger } from "@/infra/swagger";
-import { healthCheck } from "@/infra/db";
-import { getMailer } from "@/infra/mailer";
-import { csrfGuard } from "@/middlewares/csrf";
-import { ErrorCode } from "@/utils/errorCodes";
+import { ErrorCode } from "@/utils";
+import {
+  errorHandler,
+  apiLimiter,
+  requestIdMiddleware,
+  requestTimeout,
+  httpLogger,
+  csrfGuard,
+} from "@/middlewares";
+import {
+  initSentry,
+  setupSentryErrorHandler,
+  setupSwagger,
+  healthCheck,
+  getMailer,
+} from "@/infra";
 
 export function createApp() {
   const app = express();

@@ -1,6 +1,5 @@
 import { Request, Response, NextFunction } from "express";
-import { AppError } from "@/utils/AppError";
-import { ErrorCode } from "@/utils/errorCodes";
+import { AppError, ErrorCode } from "@/utils";
 
 export function requireRole(...allowedRoles: string[]) {
   return (req: Request, _res: Response, next: NextFunction): void => {

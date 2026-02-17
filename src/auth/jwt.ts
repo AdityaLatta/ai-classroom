@@ -1,7 +1,7 @@
 // src/auth/jwt.ts
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
-import { getEnv } from "@/config/env";
+import { getEnv } from "@/config";
 import { UserRole } from "@/types/user";
 
 export { UserRole };

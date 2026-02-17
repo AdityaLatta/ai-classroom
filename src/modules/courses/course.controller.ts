@@ -1,9 +1,7 @@
 import { Request, Response } from "express";
 import { CourseService } from "./course.service";
-import { AppResponse } from "@/utils/AppResponse";
-import { asyncHandler } from "@/utils/asyncHandler";
+import { AppResponse, asyncHandler, audit } from "@/utils";
 import { ListCoursesQuery } from "./course.schemas";
-import { audit } from "@/utils/audit";
 
 export class CourseController {
   constructor(private readonly service: CourseService) {}

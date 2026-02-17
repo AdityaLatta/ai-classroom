@@ -7,17 +7,14 @@ import {
   verifyAccessToken,
   JwtPayload,
 } from "@/auth/jwt";
-import { getEnv } from "@/config/env";
-import { logger } from "@/utils/logger";
+import { getEnv } from "@/config";
+import { logger, AppError, ErrorCode, audit } from "@/utils";
 import {
   sendEmail,
   verificationEmailHtml,
   passwordResetEmailHtml,
-} from "@/infra/mailer";
-import { withTransaction } from "@/infra/db";
-import { AppError } from "@/utils/AppError";
-import { ErrorCode } from "@/utils/errorCodes";
-import { audit } from "@/utils/audit";
+  withTransaction,
+} from "@/infra";
 import { IUserRepository, User } from "@/modules/users/user.types";
 import {
   AuthTokens,

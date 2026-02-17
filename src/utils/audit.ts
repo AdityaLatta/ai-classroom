@@ -1,4 +1,4 @@
-import { logger } from "@/utils/logger";
+import { logger } from "./logger";
 
 export type AuditAction =
   | "USER_REGISTERED"
@@ -28,8 +28,16 @@ interface AuditEntry {
   metadata?: Record<string, unknown>;
 }
 
-const auditLog = logger.child({ component: "audit" });
+// Lazy-init to avoid issues when logger is mocked in tests
+let auditLog: ReturnType<typeof logger.child> | null = null;
+
+function getAuditLog() {
+  if (!auditLog) {
+    auditLog = logger.child({ component: "audit" });
+  }
+  return auditLog;
+}
 
 export function audit(entry: AuditEntry): void {
-  auditLog.info(entry, `AUDIT: ${entry.action}`);
+  getAuditLog().info(entry, `AUDIT: ${entry.action}`);
 }

@@ -1,7 +1,7 @@
 import { z } from "zod";
-import "@/infra/openapi";
+// Import directly to avoid circular dependency with swagger -> auth.docs -> auth.schemas
 import { emailSchema, passwordSchema } from "@/infra/openapi";
-import { stripHtml } from "@/utils/sanitize";
+import { stripHtml } from "@/utils";
 
 export const googleLoginSchema = z
   .object({

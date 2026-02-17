@@ -1,7 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import { verifyAccessToken } from "@/auth/jwt";
-import { AppError } from "@/utils/AppError";
-import { ErrorCode } from "@/utils/errorCodes";
+import { AppError, ErrorCode } from "@/utils";
 
 export function requireAuth(
   req: Request,
