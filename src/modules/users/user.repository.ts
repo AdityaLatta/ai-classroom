@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { Pool, PoolClient } from "pg";
-import { getDb } from "../../infra/db";
+import { getDb } from "@/infra/db";
 import { User, CreateUserDTO, IUserRepository } from "./user.types";
 
 const userRowSchema = z.object({

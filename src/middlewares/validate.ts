@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import { ZodSchema, ZodError } from "zod";
-import { ErrorCode } from "../utils/errorCodes";
+import { ErrorCode } from "@/utils/errorCodes";
 
 function ensureValidated(req: Request): void {
   if (!req.validated) {

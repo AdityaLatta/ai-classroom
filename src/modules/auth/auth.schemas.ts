@@ -1,7 +1,7 @@
 import { z } from "zod";
-import "../../infra/openapi";
-import { emailSchema, passwordSchema } from "../../infra/openapi";
-import { stripHtml } from "../../utils/sanitize";
+import "@/infra/openapi";
+import { emailSchema, passwordSchema } from "@/infra/openapi";
+import { stripHtml } from "@/utils/sanitize";
 
 export const googleLoginSchema = z
   .object({

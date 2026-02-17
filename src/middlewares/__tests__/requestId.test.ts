@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
-import { requestIdMiddleware, REQUEST_ID_HEADER } from "../requestId";
+import { requestIdMiddleware, REQUEST_ID_HEADER } from "@/middlewares/requestId";
 
-jest.mock("../../utils/logger", () => ({
+jest.mock("@/utils/logger", () => ({
   createChildLogger: jest.fn(() => ({
     info: jest.fn(),
     warn: jest.fn(),

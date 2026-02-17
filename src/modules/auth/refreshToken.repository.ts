@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { Pool, PoolClient } from "pg";
-import { getDb } from "../../infra/db";
-import { getRefreshTokenExpiry } from "../../auth/jwt";
+import { getDb } from "@/infra/db";
+import { getRefreshTokenExpiry } from "@/auth/jwt";
 import {
   RefreshToken,
   CreateRefreshTokenDTO,

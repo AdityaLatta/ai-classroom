@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from "express";
-import { getEnv } from "../config/env";
+import { getEnv } from "@/config/env";
 
 export function requestTimeout(
   req: Request,

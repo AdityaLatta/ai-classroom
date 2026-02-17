@@ -1,13 +1,13 @@
 import request from "supertest";
-import { createApp } from "../../../app";
-import { signAccessToken, JwtPayload } from "../../../auth/jwt";
+import { createApp } from "@/app";
+import { signAccessToken, JwtPayload } from "@/auth/jwt";
 import { Express } from "express";
 
 // Create mock query function
 const mockQuery = jest.fn();
 
 // Mock the database
-jest.mock("../../../infra/db", () => ({
+jest.mock("@/infra/db", () => ({
   getDb: jest.fn(() => ({
     query: mockQuery,
   })),
@@ -16,7 +16,7 @@ jest.mock("../../../infra/db", () => ({
 }));
 
 // Mock the mailer
-jest.mock("../../../infra/mailer", () => ({
+jest.mock("@/infra/mailer", () => ({
   getMailer: jest.fn(() => ({
     verify: jest.fn().mockResolvedValue(true),
   })),
@@ -66,7 +66,7 @@ describe("Course API", () => {
       });
 
       const response = await request(app)
-        .post("/api/courses")
+        .post("/api/v1/courses")
         .set("X-Requested-With", "XMLHttpRequest")
         .set("Authorization", `Bearer ${authToken}`)
         .send(validCourseData);
@@ -82,7 +82,7 @@ describe("Course API", () => {
 
     it("should return 401 without auth token", async () => {
       const response = await request(app)
-        .post("/api/courses")
+        .post("/api/v1/courses")
         .set("X-Requested-With", "XMLHttpRequest")
         .send(validCourseData);
 
@@ -94,7 +94,7 @@ describe("Course API", () => {
 
     it("should return 401 with invalid auth token", async () => {
       const response = await request(app)
-        .post("/api/courses")
+        .post("/api/v1/courses")
         .set("X-Requested-With", "XMLHttpRequest")
         .set("Authorization", "Bearer invalid-token")
         .send(validCourseData);
@@ -107,7 +107,7 @@ describe("Course API", () => {
 
     it("should return 400 for missing title", async () => {
       const response = await request(app)
-        .post("/api/courses")
+        .post("/api/v1/courses")
         .set("X-Requested-With", "XMLHttpRequest")
         .set("Authorization", `Bearer ${authToken}`)
         .send({ description: "Valid description here" });
@@ -118,7 +118,7 @@ describe("Course API", () => {
 
     it("should return 400 for title too short", async () => {
       const response = await request(app)
-        .post("/api/courses")
+        .post("/api/v1/courses")
         .set("X-Requested-With", "XMLHttpRequest")
         .set("Authorization", `Bearer ${authToken}`)
         .send({ title: "AB", description: "Valid description here" });
@@ -132,7 +132,7 @@ describe("Course API", () => {
 
     it("should return 400 for description too short", async () => {
       const response = await request(app)
-        .post("/api/courses")
+        .post("/api/v1/courses")
         .set("X-Requested-With", "XMLHttpRequest")
         .set("Authorization", `Bearer ${authToken}`)
         .send({ title: "Valid Title", description: "Short" });
@@ -172,7 +172,7 @@ describe("Course API", () => {
         .mockResolvedValueOnce({ rows: mockCourseRows, rowCount: 2 });
 
       const response = await request(app)
-        .get("/api/courses")
+        .get("/api/v1/courses")
         .set("Authorization", `Bearer ${authToken}`);
 
       expect(response.status).toBe(200);
@@ -196,7 +196,7 @@ describe("Course API", () => {
         .mockResolvedValueOnce({ rows: manyRows, rowCount: 11 });
 
       const response = await request(app)
-        .get("/api/courses?limit=10&offset=20")
+        .get("/api/v1/courses?limit=10&offset=20")
         .set("Authorization", `Bearer ${authToken}`);
 
       expect(response.status).toBe(200);
@@ -215,7 +215,7 @@ describe("Course API", () => {
         .mockResolvedValueOnce({ rows: [mockCourseRows[0]], rowCount: 1 });
 
       const response = await request(app)
-        .get("/api/courses?search=One")
+        .get("/api/v1/courses?search=One")
         .set("Authorization", `Bearer ${authToken}`);
 
       expect(response.status).toBe(200);
@@ -227,7 +227,7 @@ describe("Course API", () => {
     });
 
     it("should return 401 without auth token", async () => {
-      const response = await request(app).get("/api/courses");
+      const response = await request(app).get("/api/v1/courses");
 
       expect(response.status).toBe(401);
     });
@@ -250,7 +250,7 @@ describe("Course API", () => {
       });
 
       const response = await request(app)
-        .get("/api/courses/550e8400-e29b-41d4-a716-446655440000")
+        .get("/api/v1/courses/550e8400-e29b-41d4-a716-446655440000")
         .set("Authorization", `Bearer ${authToken}`);
 
       expect(response.status).toBe(200);
@@ -267,7 +267,7 @@ describe("Course API", () => {
       });
 
       const response = await request(app)
-        .get("/api/courses/550e8400-e29b-41d4-a716-446655440000")
+        .get("/api/v1/courses/550e8400-e29b-41d4-a716-446655440000")
         .set("Authorization", `Bearer ${authToken}`);
 
       expect(response.status).toBe(404);
@@ -277,7 +277,7 @@ describe("Course API", () => {
 
     it("should return 401 without auth token", async () => {
       const response = await request(app).get(
-        "/api/courses/550e8400-e29b-41d4-a716-446655440000",
+        "/api/v1/courses/550e8400-e29b-41d4-a716-446655440000",
       );
 
       expect(response.status).toBe(401);
@@ -285,7 +285,7 @@ describe("Course API", () => {
 
     it("should return 400 for invalid UUID format", async () => {
       const response = await request(app)
-        .get("/api/courses/invalid-id")
+        .get("/api/v1/courses/invalid-id")
         .set("Authorization", `Bearer ${authToken}`);
 
       expect(response.status).toBe(400);

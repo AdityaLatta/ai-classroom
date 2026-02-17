@@ -1,6 +1,6 @@
 import { OpenAPIRegistry } from "@asteasolutions/zod-to-openapi";
 import { z } from "zod";
-import "../../infra/openapi";
+import "@/infra/openapi";
 import {
   googleLoginSchema,
   refreshTokenSchema,

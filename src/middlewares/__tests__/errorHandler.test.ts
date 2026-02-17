@@ -1,8 +1,8 @@
 import { Request, Response, NextFunction } from "express";
-import { errorHandler } from "../errorHandler";
-import { AppError } from "../../utils/AppError";
+import { errorHandler } from "@/middlewares/errorHandler";
+import { AppError } from "@/utils/AppError";
 
-jest.mock("../../infra/sentry", () => ({
+jest.mock("@/infra/sentry", () => ({
   captureError: jest.fn(),
 }));
 

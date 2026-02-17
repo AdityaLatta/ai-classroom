@@ -1,10 +1,10 @@
-import { CourseService } from "../course.service";
-import { CourseRepository } from "../course.repository";
-import { AppError } from "../../../utils/AppError";
-import { Course, CreateCourseDTO } from "../course.types";
+import { CourseService } from "@/modules/courses/course.service";
+import { CourseRepository } from "@/modules/courses/course.repository";
+import { AppError } from "@/utils/AppError";
+import { Course, CreateCourseDTO } from "@/modules/courses/course.types";
 
 // Mock the repository
-jest.mock("../course.repository");
+jest.mock("@/modules/courses/course.repository");
 
 describe("CourseService", () => {
   let service: CourseService;

@@ -1,6 +1,6 @@
 import crypto from "crypto";
 import { Pool, PoolClient } from "pg";
-import { withTransaction } from "../../infra/db";
+import { withTransaction } from "@/infra/db";
 
 interface CreateHashedTokenOptions {
   tableName: string;

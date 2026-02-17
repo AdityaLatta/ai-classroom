@@ -1,8 +1,8 @@
 import { Request, Response, NextFunction } from "express";
 import { ZodError } from "zod";
-import { AppError } from "../utils/AppError";
-import { logger } from "../utils/logger";
-import { captureError } from "../infra/sentry";
+import { AppError } from "@/utils/AppError";
+import { logger } from "@/utils/logger";
+import { captureError } from "@/infra/sentry";
 
 export function errorHandler(
   err: unknown,

@@ -1,5 +1,5 @@
-import { getDb } from "../infra/db";
-import { logger } from "../utils/logger";
+import { getDb } from "@/infra/db";
+import { logger } from "@/utils/logger";
 
 const CLEANUP_INTERVAL_MS = 60 * 60 * 1000; // 1 hour
 

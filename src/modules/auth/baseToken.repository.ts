@@ -1,7 +1,7 @@
 import crypto from "crypto";
 import { z } from "zod";
 import { Pool, PoolClient } from "pg";
-import { getDb } from "../../infra/db";
+import { getDb } from "@/infra/db";
 import { createHashedToken } from "./tokenUtils";
 import { TokenRecord } from "./auth.types";
 

@@ -1,11 +1,11 @@
 // Mock dependencies before imports
 const mockQuery = jest.fn();
 
-jest.mock("../../infra/db", () => ({
+jest.mock("@/infra/db", () => ({
   getDb: () => ({ query: mockQuery }),
 }));
 
-jest.mock("../../utils/logger", () => ({
+jest.mock("@/utils/logger", () => ({
   logger: {
     info: jest.fn(),
     warn: jest.fn(),
@@ -14,7 +14,7 @@ jest.mock("../../utils/logger", () => ({
   },
 }));
 
-import { TokenCleanupJob } from "../tokenCleanup";
+import { TokenCleanupJob } from "@/jobs/tokenCleanup";
 
 describe("TokenCleanupJob", () => {
   let job: TokenCleanupJob;
@@ -82,7 +82,7 @@ describe("TokenCleanupJob", () => {
     for (let i = 0; i < 20; i++) await Promise.resolve();
 
     // Should not throw
-    const { logger } = require("../../utils/logger");
+    const { logger } = require("@/utils/logger");
     expect(logger.error).toHaveBeenCalled();
   });
 

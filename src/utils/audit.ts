@@ -1,4 +1,4 @@
-import { logger } from "./logger";
+import { logger } from "@/utils/logger";
 
 export type AuditAction =
   | "USER_REGISTERED"

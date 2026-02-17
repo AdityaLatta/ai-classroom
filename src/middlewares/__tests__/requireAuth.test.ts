@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
-import { requireAuth } from "../requireAuth";
-import { signAccessToken, JwtPayload } from "../../auth/jwt";
-import { AppError } from "../../utils/AppError";
+import { requireAuth } from "@/middlewares/requireAuth";
+import { signAccessToken, JwtPayload } from "@/auth/jwt";
+import { AppError } from "@/utils/AppError";
 
 describe("requireAuth middleware", () => {
   let mockRequest: Partial<Request>;

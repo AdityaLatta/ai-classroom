@@ -1,5 +1,5 @@
 // src/modules/courses/course.types.ts
-import { PaginatedResult } from "../../utils/pagination";
+import { PaginatedResult } from "@/utils/pagination";
 
 export interface CreateCourseDTO {
   title: string;

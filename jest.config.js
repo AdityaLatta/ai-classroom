@@ -3,6 +3,9 @@ module.exports = {
   preset: "ts-jest",
   testEnvironment: "node",
   roots: ["<rootDir>/src"],
+  moduleNameMapper: {
+    "^@/(.*)$": "<rootDir>/src/$1",
+  },
   testMatch: ["**/__tests__/**/*.test.ts", "**/*.test.ts", "**/*.spec.ts"],
   testPathIgnorePatterns: ["/node_modules/", "setup.ts"],
   moduleFileExtensions: ["ts", "js", "json"],

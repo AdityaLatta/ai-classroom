@@ -7,7 +7,7 @@
     "test": "jest",
     "test:watch": "jest --watchAll",
     "test:coverage": "jest --coverage",
-    "build": "tsc && echo '✓ Build completed'",
+    "build": "tsc && tsc-alias && echo '✓ Build completed'",
     "start": "node dist/server.js",
     "dev": "nodemon src/server.ts",
     "lint": "eslint src/ && echo '✓ Lint passed'",
@@ -47,6 +47,8 @@
     "supertest": "^7.0.0",
     "ts-jest": "^29.2.6",
     "ts-node": "^10.9.2",
+    "tsc-alias": "^1.8.16",
+    "tsconfig-paths": "^4.2.0",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.22.0"
   },

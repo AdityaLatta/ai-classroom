@@ -1,5 +1,5 @@
 import { PoolClient } from "pg";
-import { UserRole } from "../../auth/jwt";
+import { UserRole } from "@/auth/jwt";
 
 export interface User {
   id: string;

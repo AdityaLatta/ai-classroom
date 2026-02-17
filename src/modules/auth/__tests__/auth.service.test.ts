@@ -1,36 +1,36 @@
-import { AuthService } from "../auth.service";
-import { LoginAttemptTracker } from "../loginAttemptTracker";
-import { UserRepository } from "../../users/user.repository";
-import { RefreshTokenRepository } from "../refreshToken.repository";
-import { EmailVerificationRepository } from "../emailVerification.repository";
-import { PasswordResetRepository } from "../passwordReset.repository";
-import { AppError } from "../../../utils/AppError";
+import { AuthService } from "@/modules/auth/auth.service";
+import { LoginAttemptTracker } from "@/modules/auth/loginAttemptTracker";
+import { UserRepository } from "@/modules/users/user.repository";
+import { RefreshTokenRepository } from "@/modules/auth/refreshToken.repository";
+import { EmailVerificationRepository } from "@/modules/auth/emailVerification.repository";
+import { PasswordResetRepository } from "@/modules/auth/passwordReset.repository";
+import { AppError } from "@/utils/AppError";
 import bcrypt from "bcryptjs";
 
 // Mock dependencies
-jest.mock("../../users/user.repository");
-jest.mock("../refreshToken.repository");
-jest.mock("../emailVerification.repository");
-jest.mock("../passwordReset.repository");
-jest.mock("../../../infra/mailer", () => ({
+jest.mock("@/modules/users/user.repository");
+jest.mock("@/modules/auth/refreshToken.repository");
+jest.mock("@/modules/auth/emailVerification.repository");
+jest.mock("@/modules/auth/passwordReset.repository");
+jest.mock("@/infra/mailer", () => ({
   sendEmail: jest.fn().mockResolvedValue(undefined),
   verificationEmailHtml: jest.fn().mockReturnValue("<html>verify</html>"),
   passwordResetEmailHtml: jest.fn().mockReturnValue("<html>reset</html>"),
 }));
 jest.mock("bcryptjs");
-jest.mock("../../../auth/google", () => ({
+jest.mock("@/auth/google", () => ({
   verifyGoogleToken: jest.fn(),
 }));
 
 const mockClient = { query: jest.fn().mockResolvedValue({ rows: [], rowCount: 0 }) };
-jest.mock("../../../infra/db", () => ({
+jest.mock("@/infra/db", () => ({
   getDb: jest.fn(),
   withTransaction: jest.fn(async (callback: (client: typeof mockClient) => Promise<unknown>) => {
     return callback(mockClient);
   }),
 }));
 
-import { verifyGoogleToken } from "../../../auth/google";
+import { verifyGoogleToken } from "@/auth/google";
 
 describe("AuthService", () => {
   let service: AuthService;
@@ -540,7 +540,7 @@ describe("AuthService", () => {
 
   describe("getCurrentUser", () => {
     it("should return user for valid access token", async () => {
-      const { signAccessToken } = jest.requireActual("../.././../auth/jwt");
+      const { signAccessToken } = jest.requireActual("@/auth/jwt");
       const token = signAccessToken({
         sub: "user-123",
         role: "STUDENT",

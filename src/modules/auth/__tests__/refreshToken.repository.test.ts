@@ -1,8 +1,8 @@
-import { RefreshTokenRepository } from "../refreshToken.repository";
+import { RefreshTokenRepository } from "@/modules/auth/refreshToken.repository";
 
 const mockQuery = jest.fn();
 
-jest.mock("../../../infra/db", () => ({
+jest.mock("@/infra/db", () => ({
   getDb: jest.fn(() => ({
     query: mockQuery,
   })),

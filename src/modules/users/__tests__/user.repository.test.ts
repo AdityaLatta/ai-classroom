@@ -1,8 +1,8 @@
-import { UserRepository } from "../user.repository";
+import { UserRepository } from "@/modules/users/user.repository";
 
 const mockQuery = jest.fn();
 
-jest.mock("../../../infra/db", () => ({
+jest.mock("@/infra/db", () => ({
   getDb: jest.fn(() => ({
     query: mockQuery,
   })),

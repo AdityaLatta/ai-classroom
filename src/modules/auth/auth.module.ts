@@ -1,11 +1,11 @@
 import { AuthController } from "./auth.controller";
 import { AuthService } from "./auth.service";
 import { LoginAttemptTracker } from "./loginAttemptTracker";
-import { UserRepository } from "../users/user.repository";
+import { UserRepository } from "@/modules/users/user.repository";
 import { RefreshTokenRepository } from "./refreshToken.repository";
 import { EmailVerificationRepository } from "./emailVerification.repository";
 import { PasswordResetRepository } from "./passwordReset.repository";
-import { TokenCleanupJob } from "../../jobs/tokenCleanup";
+import { TokenCleanupJob } from "@/jobs/tokenCleanup";
 import { createAuthRouter } from "./auth.routes";
 
 // --- Composition root for auth module ---

@@ -1,13 +1,13 @@
 import request from "supertest";
-import { createApp } from "../../../app";
-import { signAccessToken, JwtPayload } from "../../../auth/jwt";
+import { createApp } from "@/app";
+import { signAccessToken, JwtPayload } from "@/auth/jwt";
 import { Express } from "express";
 
 // Create mock query function
 const mockQuery = jest.fn();
 
 // Mock the database
-jest.mock("../../../infra/db", () => ({
+jest.mock("@/infra/db", () => ({
   getDb: jest.fn(() => ({
     query: mockQuery,
   })),
@@ -19,7 +19,7 @@ jest.mock("../../../infra/db", () => ({
 }));
 
 // Mock the mailer
-jest.mock("../../../infra/mailer", () => ({
+jest.mock("@/infra/mailer", () => ({
   sendEmail: jest.fn().mockResolvedValue(undefined),
   verificationEmailHtml: jest.fn().mockReturnValue("<html>verify</html>"),
   passwordResetEmailHtml: jest.fn().mockReturnValue("<html>reset</html>"),
@@ -32,7 +32,7 @@ jest.mock("bcryptjs", () => ({
 }));
 
 // Mock rate limiters to prevent 429 in tests
-jest.mock("../../../middlewares/rateLimiter", () => {
+jest.mock("@/middlewares/rateLimiter", () => {
   const passthrough = (
     _req: unknown,
     _res: unknown,
@@ -46,7 +46,7 @@ jest.mock("../../../middlewares/rateLimiter", () => {
 });
 
 import bcrypt from "bcryptjs";
-import { sendEmail } from "../../../infra/mailer";
+import { sendEmail } from "@/infra/mailer";
 
 describe("Auth API - Email/Password", () => {
   let app: Express;
@@ -105,7 +105,7 @@ describe("Auth API - Email/Password", () => {
       mockQuery.mockResolvedValueOnce({ rows: [], rowCount: 1 });
 
       const response = await request(app)
-        .post("/api/auth/register")
+        .post("/api/v1/auth/register")
         .set("X-Requested-With", "XMLHttpRequest")
         .send(validBody);
 
@@ -121,7 +121,7 @@ describe("Auth API - Email/Password", () => {
       });
 
       const response = await request(app)
-        .post("/api/auth/register")
+        .post("/api/v1/auth/register")
         .set("X-Requested-With", "XMLHttpRequest")
         .send(validBody);
 
@@ -132,7 +132,7 @@ describe("Auth API - Email/Password", () => {
 
     it("should return 400 for invalid email", async () => {
       const response = await request(app)
-        .post("/api/auth/register")
+        .post("/api/v1/auth/register")
         .set("X-Requested-With", "XMLHttpRequest")
         .send({ email: "not-an-email", password: "Password123", name: "Test" });
 
@@ -142,7 +142,7 @@ describe("Auth API - Email/Password", () => {
 
     it("should return 400 for weak password", async () => {
       const response = await request(app)
-        .post("/api/auth/register")
+        .post("/api/v1/auth/register")
         .set("X-Requested-With", "XMLHttpRequest")
         .send({ email: "test@example.com", password: "short", name: "Test" });
 
@@ -152,7 +152,7 @@ describe("Auth API - Email/Password", () => {
 
     it("should return 400 for missing name", async () => {
       const response = await request(app)
-        .post("/api/auth/register")
+        .post("/api/v1/auth/register")
         .set("X-Requested-With", "XMLHttpRequest")
         .send({ email: "test@example.com", password: "Password123" });
 
@@ -162,7 +162,7 @@ describe("Auth API - Email/Password", () => {
 
     it("should return 400 for password without uppercase", async () => {
       const response = await request(app)
-        .post("/api/auth/register")
+        .post("/api/v1/auth/register")
         .set("X-Requested-With", "XMLHttpRequest")
         .send({
           email: "test@example.com",
@@ -205,7 +205,7 @@ describe("Auth API - Email/Password", () => {
       });
 
       const response = await request(app)
-        .post("/api/auth/login")
+        .post("/api/v1/auth/login")
         .set("X-Requested-With", "XMLHttpRequest")
         .send({ email: "test@example.com", password: "Password123" });
 
@@ -219,7 +219,7 @@ describe("Auth API - Email/Password", () => {
       mockQuery.mockResolvedValueOnce({ rows: [], rowCount: 0 });
 
       const response = await request(app)
-        .post("/api/auth/login")
+        .post("/api/v1/auth/login")
         .set("X-Requested-With", "XMLHttpRequest")
         .send({ email: "no@user.com", password: "Password123" });
 
@@ -235,7 +235,7 @@ describe("Auth API - Email/Password", () => {
       (bcrypt.compare as jest.Mock).mockResolvedValueOnce(false);
 
       const response = await request(app)
-        .post("/api/auth/login")
+        .post("/api/v1/auth/login")
         .set("X-Requested-With", "XMLHttpRequest")
         .send({ email: "test@example.com", password: "WrongPassword1" });
 
@@ -250,7 +250,7 @@ describe("Auth API - Email/Password", () => {
       });
 
       const response = await request(app)
-        .post("/api/auth/login")
+        .post("/api/v1/auth/login")
         .set("X-Requested-With", "XMLHttpRequest")
         .send({ email: "test@example.com", password: "Password123" });
 
@@ -260,7 +260,7 @@ describe("Auth API - Email/Password", () => {
 
     it("should return 400 for missing password", async () => {
       const response = await request(app)
-        .post("/api/auth/login")
+        .post("/api/v1/auth/login")
         .set("X-Requested-With", "XMLHttpRequest")
         .send({ email: "test@example.com" });
 
@@ -293,7 +293,7 @@ describe("Auth API - Email/Password", () => {
       mockQuery.mockResolvedValueOnce({ rows: [], rowCount: 1 });
 
       const response = await request(app)
-        .post("/api/auth/verify-email")
+        .post("/api/v1/auth/verify-email")
         .set("X-Requested-With", "XMLHttpRequest")
         .send({ token: "a".repeat(64) });
 
@@ -305,7 +305,7 @@ describe("Auth API - Email/Password", () => {
       mockQuery.mockResolvedValueOnce({ rows: [], rowCount: 0 });
 
       const response = await request(app)
-        .post("/api/auth/verify-email")
+        .post("/api/v1/auth/verify-email")
         .set("X-Requested-With", "XMLHttpRequest")
         .send({ token: "invalid-token" });
 
@@ -315,7 +315,7 @@ describe("Auth API - Email/Password", () => {
 
     it("should return 400 for missing token", async () => {
       const response = await request(app)
-        .post("/api/auth/verify-email")
+        .post("/api/v1/auth/verify-email")
         .set("X-Requested-With", "XMLHttpRequest")
         .send({});
 
@@ -339,7 +339,7 @@ describe("Auth API - Email/Password", () => {
       mockQuery.mockResolvedValueOnce({ rows: [], rowCount: 1 });
 
       const response = await request(app)
-        .post("/api/auth/resend-verification")
+        .post("/api/v1/auth/resend-verification")
         .set("X-Requested-With", "XMLHttpRequest")
         .send({ email: "test@example.com" });
 
@@ -352,7 +352,7 @@ describe("Auth API - Email/Password", () => {
       mockQuery.mockResolvedValueOnce({ rows: [], rowCount: 0 });
 
       const response = await request(app)
-        .post("/api/auth/resend-verification")
+        .post("/api/v1/auth/resend-verification")
         .set("X-Requested-With", "XMLHttpRequest")
         .send({ email: "nonexistent@example.com" });
 
@@ -368,7 +368,7 @@ describe("Auth API - Email/Password", () => {
       });
 
       const response = await request(app)
-        .post("/api/auth/resend-verification")
+        .post("/api/v1/auth/resend-verification")
         .set("X-Requested-With", "XMLHttpRequest")
         .send({ email: "test@example.com" });
 
@@ -392,7 +392,7 @@ describe("Auth API - Email/Password", () => {
       mockQuery.mockResolvedValueOnce({ rows: [], rowCount: 1 });
 
       const response = await request(app)
-        .post("/api/auth/forgot-password")
+        .post("/api/v1/auth/forgot-password")
         .set("X-Requested-With", "XMLHttpRequest")
         .send({ email: "test@example.com" });
 
@@ -405,7 +405,7 @@ describe("Auth API - Email/Password", () => {
       mockQuery.mockResolvedValueOnce({ rows: [], rowCount: 0 });
 
       const response = await request(app)
-        .post("/api/auth/forgot-password")
+        .post("/api/v1/auth/forgot-password")
         .set("X-Requested-With", "XMLHttpRequest")
         .send({ email: "nonexistent@example.com" });
 
@@ -416,7 +416,7 @@ describe("Auth API - Email/Password", () => {
 
     it("should return 400 for invalid email format", async () => {
       const response = await request(app)
-        .post("/api/auth/forgot-password")
+        .post("/api/v1/auth/forgot-password")
         .set("X-Requested-With", "XMLHttpRequest")
         .send({ email: "not-valid" });
 
@@ -453,7 +453,7 @@ describe("Auth API - Email/Password", () => {
       mockQuery.mockResolvedValueOnce({ rows: [], rowCount: 1 });
 
       const response = await request(app)
-        .post("/api/auth/reset-password")
+        .post("/api/v1/auth/reset-password")
         .set("X-Requested-With", "XMLHttpRequest")
         .send({ token: "a".repeat(64), password: "NewPassword123" });
 
@@ -465,7 +465,7 @@ describe("Auth API - Email/Password", () => {
       mockQuery.mockResolvedValueOnce({ rows: [], rowCount: 0 });
 
       const response = await request(app)
-        .post("/api/auth/reset-password")
+        .post("/api/v1/auth/reset-password")
         .set("X-Requested-With", "XMLHttpRequest")
         .send({ token: "bad-token", password: "NewPassword123" });
 
@@ -475,7 +475,7 @@ describe("Auth API - Email/Password", () => {
 
     it("should return 400 for weak new password", async () => {
       const response = await request(app)
-        .post("/api/auth/reset-password")
+        .post("/api/v1/auth/reset-password")
         .set("X-Requested-With", "XMLHttpRequest")
         .send({ token: "some-token", password: "weak" });
 
@@ -503,7 +503,7 @@ describe("Auth API - Email/Password", () => {
       mockQuery.mockResolvedValueOnce({ rows: [], rowCount: 1 });
 
       const response = await request(app)
-        .post("/api/auth/set-password")
+        .post("/api/v1/auth/set-password")
         .set("X-Requested-With", "XMLHttpRequest")
         .set("Authorization", `Bearer ${authToken}`)
         .send({ password: "NewPassword123" });
@@ -520,7 +520,7 @@ describe("Auth API - Email/Password", () => {
       });
 
       const response = await request(app)
-        .post("/api/auth/set-password")
+        .post("/api/v1/auth/set-password")
         .set("X-Requested-With", "XMLHttpRequest")
         .set("Authorization", `Bearer ${authToken}`)
         .send({ password: "NewPassword123" });
@@ -531,7 +531,7 @@ describe("Auth API - Email/Password", () => {
 
     it("should return 401 without auth token", async () => {
       const response = await request(app)
-        .post("/api/auth/set-password")
+        .post("/api/v1/auth/set-password")
         .set("X-Requested-With", "XMLHttpRequest")
         .send({ password: "NewPassword123" });
 
@@ -540,7 +540,7 @@ describe("Auth API - Email/Password", () => {
 
     it("should return 400 for weak password", async () => {
       const response = await request(app)
-        .post("/api/auth/set-password")
+        .post("/api/v1/auth/set-password")
         .set("X-Requested-With", "XMLHttpRequest")
         .set("Authorization", `Bearer ${authToken}`)
         .send({ password: "weak" });
@@ -555,7 +555,7 @@ describe("Auth API - Email/Password", () => {
   describe("POST /api/auth/google", () => {
     it("should return 400 for missing idToken", async () => {
       const response = await request(app)
-        .post("/api/auth/google")
+        .post("/api/v1/auth/google")
         .set("X-Requested-With", "XMLHttpRequest")
         .send({});
 
@@ -609,7 +609,7 @@ describe("Auth API - Email/Password", () => {
       });
 
       const response = await request(app)
-        .post("/api/auth/refresh")
+        .post("/api/v1/auth/refresh")
         .set("X-Requested-With", "XMLHttpRequest")
         .send({ refreshToken: "valid-refresh-token" });
 
@@ -622,7 +622,7 @@ describe("Auth API - Email/Password", () => {
       mockQuery.mockResolvedValueOnce({ rows: [], rowCount: 0 });
 
       const response = await request(app)
-        .post("/api/auth/refresh")
+        .post("/api/v1/auth/refresh")
         .set("X-Requested-With", "XMLHttpRequest")
         .send({ refreshToken: "invalid-token" });
 
@@ -631,7 +631,7 @@ describe("Auth API - Email/Password", () => {
 
     it("should return 400 for missing refreshToken", async () => {
       const response = await request(app)
-        .post("/api/auth/refresh")
+        .post("/api/v1/auth/refresh")
         .set("X-Requested-With", "XMLHttpRequest")
         .send({});
 
@@ -645,7 +645,7 @@ describe("Auth API - Email/Password", () => {
       mockQuery.mockResolvedValueOnce({ rows: [], rowCount: 1 });
 
       const response = await request(app)
-        .post("/api/auth/logout")
+        .post("/api/v1/auth/logout")
         .set("X-Requested-With", "XMLHttpRequest")
         .send({ refreshToken: "some-refresh-token" });
 
@@ -655,7 +655,7 @@ describe("Auth API - Email/Password", () => {
 
     it("should return 400 for missing refreshToken", async () => {
       const response = await request(app)
-        .post("/api/auth/logout")
+        .post("/api/v1/auth/logout")
         .set("X-Requested-With", "XMLHttpRequest")
         .send({});
 
@@ -669,7 +669,7 @@ describe("Auth API - Email/Password", () => {
       mockQuery.mockResolvedValueOnce({ rows: [], rowCount: 0 });
 
       const response = await request(app)
-        .post("/api/auth/logout-all")
+        .post("/api/v1/auth/logout-all")
         .set("X-Requested-With", "XMLHttpRequest")
         .set("Authorization", `Bearer ${authToken}`);
 
@@ -678,7 +678,7 @@ describe("Auth API - Email/Password", () => {
     });
 
     it("should return 401 without auth token", async () => {
-      const response = await request(app).post("/api/auth/logout-all").set("X-Requested-With", "XMLHttpRequest");
+      const response = await request(app).post("/api/v1/auth/logout-all").set("X-Requested-With", "XMLHttpRequest");
 
       expect(response.status).toBe(401);
     });
@@ -692,7 +692,7 @@ describe("Auth API - Email/Password", () => {
       });
 
       const response = await request(app)
-        .get("/api/auth/me")
+        .get("/api/v1/auth/me")
         .set("Authorization", `Bearer ${authToken}`);
 
       expect(response.status).toBe(200);
@@ -704,14 +704,14 @@ describe("Auth API - Email/Password", () => {
       mockQuery.mockResolvedValueOnce({ rows: [], rowCount: 0 });
 
       const response = await request(app)
-        .get("/api/auth/me")
+        .get("/api/v1/auth/me")
         .set("Authorization", `Bearer ${authToken}`);
 
       expect(response.status).toBe(404);
     });
 
     it("should return 401 without auth token", async () => {
-      const response = await request(app).get("/api/auth/me");
+      const response = await request(app).get("/api/v1/auth/me");
 
       expect(response.status).toBe(401);
     });
@@ -737,7 +737,7 @@ describe("Auth API - Email/Password", () => {
       });
 
       const response = await request(app)
-        .get("/api/auth/sessions")
+        .get("/api/v1/auth/sessions")
         .set("Authorization", `Bearer ${authToken}`);
 
       expect(response.status).toBe(200);
@@ -747,7 +747,7 @@ describe("Auth API - Email/Password", () => {
     });
 
     it("should return 401 without auth token", async () => {
-      const response = await request(app).get("/api/auth/sessions");
+      const response = await request(app).get("/api/v1/auth/sessions");
 
       expect(response.status).toBe(401);
     });
@@ -777,7 +777,7 @@ describe("Auth API - Email/Password", () => {
 
       const response = await request(app)
         .delete(
-          "/api/auth/sessions/550e8400-e29b-41d4-a716-446655440000",
+          "/api/v1/auth/sessions/550e8400-e29b-41d4-a716-446655440000",
         )
         .set("X-Requested-With", "XMLHttpRequest")
         .set("Authorization", `Bearer ${authToken}`);
@@ -791,7 +791,7 @@ describe("Auth API - Email/Password", () => {
 
       const response = await request(app)
         .delete(
-          "/api/auth/sessions/550e8400-e29b-41d4-a716-446655440000",
+          "/api/v1/auth/sessions/550e8400-e29b-41d4-a716-446655440000",
         )
         .set("X-Requested-With", "XMLHttpRequest")
         .set("Authorization", `Bearer ${authToken}`);
@@ -801,7 +801,7 @@ describe("Auth API - Email/Password", () => {
 
     it("should return 400 for invalid session ID format", async () => {
       const response = await request(app)
-        .delete("/api/auth/sessions/not-a-uuid")
+        .delete("/api/v1/auth/sessions/not-a-uuid")
         .set("X-Requested-With", "XMLHttpRequest")
         .set("Authorization", `Bearer ${authToken}`);
 
@@ -811,7 +811,7 @@ describe("Auth API - Email/Password", () => {
 
     it("should return 401 without auth token", async () => {
       const response = await request(app).delete(
-        "/api/auth/sessions/550e8400-e29b-41d4-a716-446655440000",
+        "/api/v1/auth/sessions/550e8400-e29b-41d4-a716-446655440000",
       ).set("X-Requested-With", "XMLHttpRequest");
 
       expect(response.status).toBe(401);

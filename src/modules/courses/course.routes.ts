@@ -1,12 +1,12 @@
 import { Router } from "express";
 import { CourseController } from "./course.controller";
-import { requireAuth } from "../../middlewares/requireAuth";
-import { requireRole } from "../../middlewares/requireRole";
+import { requireAuth } from "@/middlewares/requireAuth";
+import { requireRole } from "@/middlewares/requireRole";
 import {
   validate,
   validateParams,
   validateQuery,
-} from "../../middlewares/validate";
+} from "@/middlewares/validate";
 import {
   createCourseSchema,
   updateCourseSchema,

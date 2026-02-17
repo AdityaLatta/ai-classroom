@@ -1,24 +1,24 @@
 import bcrypt from "bcryptjs";
 import { PoolClient } from "pg";
-import { verifyGoogleToken } from "../../auth/google";
+import { verifyGoogleToken } from "@/auth/google";
 import {
   generateTokenPair,
   hashRefreshToken,
   verifyAccessToken,
   JwtPayload,
-} from "../../auth/jwt";
-import { getEnv } from "../../config/env";
-import { logger } from "../../utils/logger";
+} from "@/auth/jwt";
+import { getEnv } from "@/config/env";
+import { logger } from "@/utils/logger";
 import {
   sendEmail,
   verificationEmailHtml,
   passwordResetEmailHtml,
-} from "../../infra/mailer";
-import { withTransaction } from "../../infra/db";
-import { AppError } from "../../utils/AppError";
-import { ErrorCode } from "../../utils/errorCodes";
-import { audit } from "../../utils/audit";
-import { IUserRepository, User } from "../users/user.types";
+} from "@/infra/mailer";
+import { withTransaction } from "@/infra/db";
+import { AppError } from "@/utils/AppError";
+import { ErrorCode } from "@/utils/errorCodes";
+import { audit } from "@/utils/audit";
+import { IUserRepository, User } from "@/modules/users/user.types";
 import {
   AuthTokens,
   LoginWithGoogleDTO,

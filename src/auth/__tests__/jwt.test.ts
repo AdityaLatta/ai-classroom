@@ -1,4 +1,4 @@
-import { signAccessToken, verifyAccessToken, JwtPayload } from "../jwt";
+import { signAccessToken, verifyAccessToken, JwtPayload } from "@/auth/jwt";
 
 // Use descriptive aliases matching old test names
 const signToken = signAccessToken;

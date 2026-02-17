@@ -1,5 +1,5 @@
 // Test setup - runs before all tests
-import { loadEnv } from "../config/env";
+import { loadEnv } from "@/config/env";
 
 // Set test environment variables before loading env
 process.env.NODE_ENV = "test";

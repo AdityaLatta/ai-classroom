@@ -1,8 +1,8 @@
-import { getEnv } from "../../config/env";
-import { AppError } from "../../utils/AppError";
-import { ErrorCode } from "../../utils/errorCodes";
-import { audit } from "../../utils/audit";
-import { logger } from "../../utils/logger";
+import { getEnv } from "@/config/env";
+import { AppError } from "@/utils/AppError";
+import { ErrorCode } from "@/utils/errorCodes";
+import { audit } from "@/utils/audit";
+import { logger } from "@/utils/logger";
 
 const CLEANUP_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
 

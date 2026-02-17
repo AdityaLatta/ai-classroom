@@ -1,12 +1,12 @@
 import { Request, Response } from "express";
 import { AuthService } from "./auth.service";
 import { AuthTokens } from "./auth.types";
-import { AppError } from "../../utils/AppError";
-import { AppResponse } from "../../utils/AppResponse";
-import { ErrorCode } from "../../utils/errorCodes";
-import { asyncHandler } from "../../utils/asyncHandler";
-import { getEnv } from "../../config/env";
-import { REFRESH_TOKEN_EXPIRY_DAYS } from "../../auth/jwt";
+import { AppError } from "@/utils/AppError";
+import { AppResponse } from "@/utils/AppResponse";
+import { ErrorCode } from "@/utils/errorCodes";
+import { asyncHandler } from "@/utils/asyncHandler";
+import { getEnv } from "@/config/env";
+import { REFRESH_TOKEN_EXPIRY_DAYS } from "@/auth/jwt";
 
 const REFRESH_TOKEN_COOKIE = "refresh_token";
 const COOKIE_PATH = "/api/auth";

@@ -1,8 +1,8 @@
 // src/modules/courses/course.service.ts
 import { ICourseRepository, CreateCourseDTO, UpdateCourseDTO, Course, ListCoursesOptions } from "./course.types";
-import { AppError } from "../../utils/AppError";
-import { ErrorCode } from "../../utils/errorCodes";
-import { PaginatedResult } from "../../utils/pagination";
+import { AppError } from "@/utils/AppError";
+import { ErrorCode } from "@/utils/errorCodes";
+import { PaginatedResult } from "@/utils/pagination";
 
 export class CourseService {
   constructor(private readonly repo: ICourseRepository) {}

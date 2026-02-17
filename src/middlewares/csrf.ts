@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from "express";
-import { AppError } from "../utils/AppError";
-import { ErrorCode } from "../utils/errorCodes";
+import { AppError } from "@/utils/AppError";
+import { ErrorCode } from "@/utils/errorCodes";
 
 const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 

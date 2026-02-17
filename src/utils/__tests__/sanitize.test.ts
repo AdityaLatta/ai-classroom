@@ -1,4 +1,4 @@
-import { stripHtml, escapeLikePattern } from "../sanitize";
+import { stripHtml, escapeLikePattern } from "@/utils/sanitize";
 
 describe("stripHtml", () => {
   it("should remove simple HTML tags", () => {
