@@ -92,8 +92,8 @@
                 "exec": [
                   "if (pm.response.code === 200) {",
                   "    const json = pm.response.json();",
-                  "    pm.collectionVariables.set('accessToken', json.accessToken);",
-                  "    pm.collectionVariables.set('refreshToken', json.refreshToken);",
+                  "    pm.collectionVariables.set('accessToken', json.data.accessToken);",
+                  "    pm.collectionVariables.set('refreshToken', json.data.refreshToken);",
                   "    console.log('Tokens saved to collection variables');",
                   "}"
                 ]
@@ -162,8 +162,8 @@
                 "exec": [
                   "if (pm.response.code === 200) {",
                   "    const json = pm.response.json();",
-                  "    pm.collectionVariables.set('accessToken', json.accessToken);",
-                  "    pm.collectionVariables.set('refreshToken', json.refreshToken);",
+                  "    pm.collectionVariables.set('accessToken', json.data.accessToken);",
+                  "    pm.collectionVariables.set('refreshToken', json.data.refreshToken);",
                   "    console.log('Tokens saved to collection variables');",
                   "}"
                 ]
@@ -208,8 +208,8 @@
                 "exec": [
                   "if (pm.response.code === 200) {",
                   "    const json = pm.response.json();",
-                  "    pm.collectionVariables.set('accessToken', json.accessToken);",
-                  "    pm.collectionVariables.set('refreshToken', json.refreshToken);",
+                  "    pm.collectionVariables.set('accessToken', json.data.accessToken);",
+                  "    pm.collectionVariables.set('refreshToken', json.data.refreshToken);",
                   "    console.log('Tokens refreshed and saved');",
                   "}"
                 ]
@@ -268,9 +268,9 @@
                 "exec": [
                   "if (pm.response.code === 200) {",
                   "    const json = pm.response.json();",
-                  "    if (json.length > 0) {",
-                  "        pm.collectionVariables.set('sessionId', json[0].id);",
-                  "        console.log('First session ID saved:', json[0].id);",
+                  "    if (json.data && json.data.length > 0) {",
+                  "        pm.collectionVariables.set('sessionId', json.data[0].id);",
+                  "        console.log('First session ID saved:', json.data[0].id);",
                   "    }",
                   "}"
                 ]
@@ -332,8 +332,8 @@
                 "exec": [
                   "if (pm.response.code === 201) {",
                   "    const json = pm.response.json();",
-                  "    pm.collectionVariables.set('courseId', json.id);",
-                  "    console.log('Course ID saved:', json.id);",
+                  "    pm.collectionVariables.set('courseId', json.data.id);",
+                  "    console.log('Course ID saved:', json.data.id);",
                   "}"
                 ]
               }
