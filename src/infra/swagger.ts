@@ -2,6 +2,7 @@ import {
   OpenAPIRegistry,
   OpenApiGeneratorV3,
 } from "@asteasolutions/zod-to-openapi";
+import type { OpenAPIObject } from "openapi3-ts/oas30";
 import { z } from "zod";
 import swaggerUi from "swagger-ui-express";
 import { Express } from "express";
@@ -36,7 +37,10 @@ const PaginationMetaSchema = z
     limit: z.number().int().openapi({ description: "Items per page" }),
     offset: z.number().int().openapi({ description: "Current offset" }),
     hasMore: z.boolean().openapi({ description: "Whether more items exist" }),
-    nextCursor: z.string().optional().openapi({ description: "Cursor for the next page" }),
+    nextCursor: z
+      .string()
+      .optional()
+      .openapi({ description: "Cursor for the next page" }),
   })
   .openapi("PaginationMeta");
 
@@ -65,7 +69,10 @@ const AuthTokensSchema = z
   .object({
     accessToken: z.string(),
     refreshToken: z.string(),
-    expiresIn: z.number().int().openapi({ description: "Access token expiry in seconds" }),
+    expiresIn: z
+      .number()
+      .int()
+      .openapi({ description: "Access token expiry in seconds" }),
     user: UserSchema,
   })
   .openapi("AuthTokens");
@@ -95,9 +102,9 @@ registry.register("Session", SessionSchema);
 
 // --- Generate spec ---
 
-let swaggerSpec: object | null = null;
+let swaggerSpec: OpenAPIObject | null = null;
 
-function getSwaggerSpec(): object {
+function getSwaggerSpec(): OpenAPIObject {
   if (!swaggerSpec) {
     const generator = new OpenApiGeneratorV3(registry.definitions);
     swaggerSpec = generator.generateDocument({
@@ -113,8 +120,8 @@ function getSwaggerSpec(): object {
     });
 
     // Inject security schemes (generator doesn't have a built-in option for this)
-    (swaggerSpec as any).components = (swaggerSpec as any).components || {};
-    (swaggerSpec as any).components.securitySchemes = {
+    swaggerSpec.components = swaggerSpec.components ?? {};
+    swaggerSpec.components.securitySchemes = {
       BearerAuth: {
         type: "http",
         scheme: "bearer",
