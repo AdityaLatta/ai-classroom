@@ -16,7 +16,6 @@ import {
   changePasswordSchema,
 } from "./auth.schemas";
 
-
 export const authRegistry = new OpenAPIRegistry();
 
 // --- Helper schemas for responses ---
@@ -25,10 +24,16 @@ const messageResponse = z.object({
   message: z.string(),
 });
 
-const authTokensRef = { $ref: "#/components/schemas/AuthTokens" };
-const userRef = { $ref: "#/components/schemas/User" };
-const sessionRef = { $ref: "#/components/schemas/Session" };
-const validationErrorRef = { $ref: "#/components/schemas/ValidationError" };
+const authTokensRef: Record<string, string> = {
+  $ref: "#/components/schemas/AuthTokens",
+};
+const userRef: Record<string, string> = { $ref: "#/components/schemas/User" };
+const sessionRef: Record<string, string> = {
+  $ref: "#/components/schemas/Session",
+};
+const validationErrorRef: Record<string, string> = {
+  $ref: "#/components/schemas/ValidationError",
+};
 
 // --- OAuth Routes ---
 
@@ -39,11 +44,20 @@ authRegistry.registerPath({
   summary: "Login with Google OAuth",
   description: "Authenticate user with Google ID token and receive JWT tokens",
   request: {
-    body: { content: { "application/json": { schema: googleLoginSchema } }, required: true },
+    body: {
+      content: { "application/json": { schema: googleLoginSchema } },
+      required: true,
+    },
   },
   responses: {
-    200: { description: "Successfully authenticated", content: { "application/json": { schema: authTokensRef as any } } },
-    400: { description: "Validation error", content: { "application/json": { schema: validationErrorRef as any } } },
+    200: {
+      description: "Successfully authenticated",
+      content: { "application/json": { schema: authTokensRef } },
+    },
+    400: {
+      description: "Validation error",
+      content: { "application/json": { schema: validationErrorRef } },
+    },
     401: { description: "Invalid Google token" },
   },
 });
@@ -53,12 +67,19 @@ authRegistry.registerPath({
   path: "/auth/refresh",
   tags: ["Auth"],
   summary: "Refresh access token",
-  description: "Exchange a valid refresh token for new access and refresh tokens. Accepts token from body or httpOnly cookie.",
+  description:
+    "Exchange a valid refresh token for new access and refresh tokens. Accepts token from body or httpOnly cookie.",
   request: {
-    body: { content: { "application/json": { schema: refreshTokenSchema } }, required: false },
+    body: {
+      content: { "application/json": { schema: refreshTokenSchema } },
+      required: false,
+    },
   },
   responses: {
-    200: { description: "New tokens issued", content: { "application/json": { schema: authTokensRef as any } } },
+    200: {
+      description: "New tokens issued",
+      content: { "application/json": { schema: authTokensRef } },
+    },
     401: { description: "Invalid or expired refresh token" },
   },
 });
@@ -70,10 +91,16 @@ authRegistry.registerPath({
   summary: "Logout current session",
   description: "Revoke the provided refresh token and clear cookie",
   request: {
-    body: { content: { "application/json": { schema: logoutSchema } }, required: false },
+    body: {
+      content: { "application/json": { schema: logoutSchema } },
+      required: false,
+    },
   },
   responses: {
-    200: { description: "Successfully logged out", content: { "application/json": { schema: messageResponse } } },
+    200: {
+      description: "Successfully logged out",
+      content: { "application/json": { schema: messageResponse } },
+    },
   },
 });
 
@@ -87,7 +114,10 @@ authRegistry.registerPath({
   description: "Revoke all refresh tokens for the authenticated user",
   security: [{ BearerAuth: [] }],
   responses: {
-    200: { description: "Successfully logged out from all devices", content: { "application/json": { schema: messageResponse } } },
+    200: {
+      description: "Successfully logged out from all devices",
+      content: { "application/json": { schema: messageResponse } },
+    },
     401: { description: "Unauthorized" },
   },
 });
@@ -100,7 +130,10 @@ authRegistry.registerPath({
   description: "Returns the authenticated user's profile information",
   security: [{ BearerAuth: [] }],
   responses: {
-    200: { description: "User profile", content: { "application/json": { schema: userRef as any } } },
+    200: {
+      description: "User profile",
+      content: { "application/json": { schema: userRef } },
+    },
     401: { description: "Unauthorized" },
     404: { description: "User not found" },
   },
@@ -116,7 +149,14 @@ authRegistry.registerPath({
   responses: {
     200: {
       description: "List of active sessions",
-      content: { "application/json": { schema: { type: "array", items: sessionRef } as any } },
+      content: {
+        "application/json": {
+          schema: { type: "array", items: sessionRef } as Record<
+            string,
+            unknown
+          >,
+        },
+      },
     },
     401: { description: "Unauthorized" },
   },
@@ -133,7 +173,10 @@ authRegistry.registerPath({
     params: sessionIdParamSchema,
   },
   responses: {
-    200: { description: "Session revoked", content: { "application/json": { schema: messageResponse } } },
+    200: {
+      description: "Session revoked",
+      content: { "application/json": { schema: messageResponse } },
+    },
     401: { description: "Unauthorized" },
     404: { description: "Session not found" },
   },
@@ -146,13 +189,23 @@ authRegistry.registerPath({
   path: "/auth/register",
   tags: ["Auth"],
   summary: "Register with email and password",
-  description: "Create a new account with email and password. A verification email will be sent.",
+  description:
+    "Create a new account with email and password. A verification email will be sent.",
   request: {
-    body: { content: { "application/json": { schema: registerSchema } }, required: true },
+    body: {
+      content: { "application/json": { schema: registerSchema } },
+      required: true,
+    },
   },
   responses: {
-    201: { description: "Registration successful (generic response to prevent enumeration)" },
-    400: { description: "Validation error", content: { "application/json": { schema: validationErrorRef as any } } },
+    201: {
+      description:
+        "Registration successful (generic response to prevent enumeration)",
+    },
+    400: {
+      description: "Validation error",
+      content: { "application/json": { schema: validationErrorRef } },
+    },
   },
 });
 
@@ -163,10 +216,16 @@ authRegistry.registerPath({
   summary: "Login with email and password",
   description: "Authenticate with email and password and receive JWT tokens",
   request: {
-    body: { content: { "application/json": { schema: loginSchema } }, required: true },
+    body: {
+      content: { "application/json": { schema: loginSchema } },
+      required: true,
+    },
   },
   responses: {
-    200: { description: "Successfully authenticated", content: { "application/json": { schema: authTokensRef as any } } },
+    200: {
+      description: "Successfully authenticated",
+      content: { "application/json": { schema: authTokensRef } },
+    },
     401: { description: "Invalid email or password" },
     403: { description: "Email not verified" },
     429: { description: "Account temporarily locked" },
@@ -180,7 +239,10 @@ authRegistry.registerPath({
   summary: "Verify email address",
   description: "Verify email address using the token sent via email",
   request: {
-    body: { content: { "application/json": { schema: verifyEmailSchema } }, required: true },
+    body: {
+      content: { "application/json": { schema: verifyEmailSchema } },
+      required: true,
+    },
   },
   responses: {
     200: { description: "Email verified successfully" },
@@ -195,10 +257,16 @@ authRegistry.registerPath({
   summary: "Resend verification email",
   description: "Resend the email verification link",
   request: {
-    body: { content: { "application/json": { schema: resendVerificationSchema } }, required: true },
+    body: {
+      content: { "application/json": { schema: resendVerificationSchema } },
+      required: true,
+    },
   },
   responses: {
-    200: { description: "Verification email sent (if account exists and is unverified)" },
+    200: {
+      description:
+        "Verification email sent (if account exists and is unverified)",
+    },
   },
 });
 
@@ -209,7 +277,10 @@ authRegistry.registerPath({
   summary: "Request password reset",
   description: "Send a password reset email",
   request: {
-    body: { content: { "application/json": { schema: forgotPasswordSchema } }, required: true },
+    body: {
+      content: { "application/json": { schema: forgotPasswordSchema } },
+      required: true,
+    },
   },
   responses: {
     200: { description: "Password reset email sent (if account exists)" },
@@ -223,7 +294,10 @@ authRegistry.registerPath({
   summary: "Reset password",
   description: "Reset password using the token sent via email",
   request: {
-    body: { content: { "application/json": { schema: resetPasswordSchema } }, required: true },
+    body: {
+      content: { "application/json": { schema: resetPasswordSchema } },
+      required: true,
+    },
   },
   responses: {
     200: { description: "Password reset successfully" },
@@ -236,10 +310,14 @@ authRegistry.registerPath({
   path: "/auth/set-password",
   tags: ["Auth"],
   summary: "Set password for OAuth users",
-  description: "Allow OAuth users to set a password for email/password login (account linking)",
+  description:
+    "Allow OAuth users to set a password for email/password login (account linking)",
   security: [{ BearerAuth: [] }],
   request: {
-    body: { content: { "application/json": { schema: setPasswordSchema } }, required: true },
+    body: {
+      content: { "application/json": { schema: setPasswordSchema } },
+      required: true,
+    },
   },
   responses: {
     200: { description: "Password set successfully" },
@@ -253,13 +331,19 @@ authRegistry.registerPath({
   path: "/auth/change-password",
   tags: ["Auth"],
   summary: "Change password",
-  description: "Change password for users who already have one set. Requires current password.",
+  description:
+    "Change password for users who already have one set. Requires current password.",
   security: [{ BearerAuth: [] }],
   request: {
-    body: { content: { "application/json": { schema: changePasswordSchema } }, required: true },
+    body: {
+      content: { "application/json": { schema: changePasswordSchema } },
+      required: true,
+    },
   },
   responses: {
-    200: { description: "Password changed successfully. All sessions revoked." },
+    200: {
+      description: "Password changed successfully. All sessions revoked.",
+    },
     400: { description: "No password set (use set-password instead)" },
     401: { description: "Current password is incorrect" },
   },

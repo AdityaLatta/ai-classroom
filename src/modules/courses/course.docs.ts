@@ -8,9 +8,15 @@ import {
 
 export const courseRegistry = new OpenAPIRegistry();
 
-const courseRef = { $ref: "#/components/schemas/Course" };
-const paginationMetaRef = { $ref: "#/components/schemas/PaginationMeta" };
-const validationErrorRef = { $ref: "#/components/schemas/ValidationError" };
+const courseRef: Record<string, string> = {
+  $ref: "#/components/schemas/Course",
+};
+const paginationMetaRef: Record<string, string> = {
+  $ref: "#/components/schemas/PaginationMeta",
+};
+const validationErrorRef: Record<string, string> = {
+  $ref: "#/components/schemas/ValidationError",
+};
 
 courseRegistry.registerPath({
   method: "get",
@@ -33,7 +39,7 @@ courseRegistry.registerPath({
               data: { type: "array", items: courseRef },
               meta: paginationMetaRef,
             },
-          } as any,
+          } as Record<string, unknown>,
         },
       },
     },
@@ -49,13 +55,24 @@ courseRegistry.registerPath({
   description: "Create a new course (instructors and admins only)",
   security: [{ BearerAuth: [] }],
   request: {
-    body: { content: { "application/json": { schema: createCourseSchema } }, required: true },
+    body: {
+      content: { "application/json": { schema: createCourseSchema } },
+      required: true,
+    },
   },
   responses: {
-    201: { description: "Course created successfully", content: { "application/json": { schema: courseRef as any } } },
-    400: { description: "Validation error", content: { "application/json": { schema: validationErrorRef as any } } },
+    201: {
+      description: "Course created successfully",
+      content: { "application/json": { schema: courseRef } },
+    },
+    400: {
+      description: "Validation error",
+      content: { "application/json": { schema: validationErrorRef } },
+    },
     401: { description: "Unauthorized" },
-    403: { description: "Forbidden — only instructors and admins can create courses" },
+    403: {
+      description: "Forbidden — only instructors and admins can create courses",
+    },
   },
 });
 
@@ -70,7 +87,10 @@ courseRegistry.registerPath({
     params: courseIdSchema,
   },
   responses: {
-    200: { description: "Course details", content: { "application/json": { schema: courseRef as any } } },
+    200: {
+      description: "Course details",
+      content: { "application/json": { schema: courseRef } },
+    },
     401: { description: "Unauthorized" },
     404: { description: "Course not found" },
   },
@@ -85,11 +105,20 @@ courseRegistry.registerPath({
   security: [{ BearerAuth: [] }],
   request: {
     params: courseIdSchema,
-    body: { content: { "application/json": { schema: updateCourseSchema } }, required: true },
+    body: {
+      content: { "application/json": { schema: updateCourseSchema } },
+      required: true,
+    },
   },
   responses: {
-    200: { description: "Course updated successfully", content: { "application/json": { schema: courseRef as any } } },
-    400: { description: "Validation error", content: { "application/json": { schema: validationErrorRef as any } } },
+    200: {
+      description: "Course updated successfully",
+      content: { "application/json": { schema: courseRef } },
+    },
+    400: {
+      description: "Validation error",
+      content: { "application/json": { schema: validationErrorRef } },
+    },
     401: { description: "Unauthorized" },
     403: { description: "Forbidden — only the course owner can update" },
     404: { description: "Course not found" },
