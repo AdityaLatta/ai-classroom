@@ -6,7 +6,7 @@ import { getEnv } from "@/config";
 import { REFRESH_TOKEN_EXPIRY_DAYS } from "@/auth/jwt";
 
 const REFRESH_TOKEN_COOKIE = "refresh_token";
-const COOKIE_PATH = "/api/auth";
+const COOKIE_PATH = "/api/v1/auth";
 
 // Security decision: CSRF protection is provided by SameSite=Strict cookies combined
 // with Bearer token authentication. The refresh token cookie uses SameSite=Strict which

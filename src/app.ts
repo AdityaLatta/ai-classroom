@@ -53,7 +53,7 @@ export function createApp() {
   );
 
   app.use(cookieParser());
-  app.use(express.json({ limit: "10kb" }));
+  app.use(express.json({ limit: "10kb", strict: false }));
 
   // ---- HTTP request logging ----
   app.use(httpLogger);
