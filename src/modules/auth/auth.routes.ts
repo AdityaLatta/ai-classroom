@@ -12,6 +12,7 @@ import {
   resetPasswordSchema,
   setPasswordSchema,
   changePasswordSchema,
+  selectRoleSchema,
 } from "./auth.schemas";
 
 export function createAuthRouter(authController: AuthController): Router {
@@ -66,6 +67,12 @@ export function createAuthRouter(authController: AuthController): Router {
     requireAuth,
     validate(changePasswordSchema),
     authController.changePassword,
+  );
+  router.post(
+    "/select-role",
+    requireAuth,
+    validate(selectRoleSchema),
+    authController.selectRole,
   );
 
   return router;

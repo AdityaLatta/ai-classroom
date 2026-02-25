@@ -112,6 +112,15 @@ export const changePasswordSchema = z
   })
   .openapi("ChangePasswordInput");
 
+export const selectRoleSchema = z
+  .object({
+    role: z
+      .enum(["STUDENT", "INSTRUCTOR"], { message: "Role must be STUDENT or INSTRUCTOR" })
+      .openapi({ description: "Selected user role" }),
+  })
+  .openapi("SelectRoleInput");
+
+export type SelectRoleInput = z.infer<typeof selectRoleSchema>;
 export type GoogleLoginInput = z.infer<typeof googleLoginSchema>;
 export type RefreshTokenInput = z.infer<typeof refreshTokenSchema>;
 export type LogoutInput = z.infer<typeof logoutSchema>;

@@ -182,6 +182,13 @@ export class AuthController {
     AppResponse.message(res, result.message);
   });
 
+  selectRole = asyncHandler(async (req: Request, res: Response) => {
+    const userId = req.user!.id;
+    const { role } = req.body;
+    const user = await this.authService.selectRole(userId, role);
+    AppResponse.ok(res, { id: user.id, role: user.role });
+  });
+
   // --- Private helpers ---
 
   private setRefreshTokenCookie(res: Response, refreshToken: string): void {

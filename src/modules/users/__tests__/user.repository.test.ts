@@ -71,21 +71,22 @@ describe("UserRepository", () => {
   });
 
   describe("findOrCreate", () => {
-    it("should return existing user", async () => {
-      mockQuery.mockResolvedValueOnce({ rows: [mockUserRow], rowCount: 1 });
+    it("should return existing user with isNew false", async () => {
+      mockQuery.mockResolvedValueOnce({ rows: [{ ...mockUserRow, is_new: false }], rowCount: 1 });
 
       const result = await repo.findOrCreate({
         email: "test@example.com",
         name: "Test User",
       });
 
-      expect(result.id).toBe("user-123");
+      expect(result.user.id).toBe("user-123");
+      expect(result.isNew).toBe(false);
       expect(mockQuery).toHaveBeenCalledTimes(1);
     });
 
     it("should create new user if not found", async () => {
       mockQuery.mockResolvedValueOnce({
-        rows: [{ ...mockUserRow, auth_provider: "google" }],
+        rows: [{ ...mockUserRow, auth_provider: "google", is_new: true }],
         rowCount: 1,
       });
 
@@ -94,8 +95,9 @@ describe("UserRepository", () => {
         name: "Test User",
       });
 
-      expect(result.id).toBe("user-123");
-      expect(result.authProvider).toBe("google");
+      expect(result.user.id).toBe("user-123");
+      expect(result.user.authProvider).toBe("google");
+      expect(result.isNew).toBe(true);
       expect(mockQuery).toHaveBeenCalledTimes(1);
       expect(mockQuery.mock.calls[0][0]).toContain("INSERT INTO users");
       expect(mockQuery.mock.calls[0][0]).toContain("ON CONFLICT");

@@ -12,6 +12,7 @@ export interface AuthTokens {
     name: string;
     role: string;
   };
+  isNewUser?: boolean;
 }
 
 export interface LoginWithGoogleDTO {

@@ -22,7 +22,7 @@ export interface CreateUserDTO {
 export interface IUserRepository {
   findById(id: string): Promise<User | null>;
   findByEmail(email: string): Promise<User | null>;
-  findOrCreate(data: CreateUserDTO): Promise<User>;
+  findOrCreate(data: CreateUserDTO): Promise<{ user: User; isNew: boolean }>;
   update(id: string, data: Partial<Pick<User, "name" | "role">>): Promise<User | null>;
   createWithPassword(data: { email: string; name: string; passwordHash: string }): Promise<User>;
   updatePasswordHash(userId: string, passwordHash: string, client?: PoolClient): Promise<void>;

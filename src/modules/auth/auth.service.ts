@@ -43,7 +43,7 @@ export class AuthService {
   async loginWithGoogle(dto: LoginWithGoogleDTO): Promise<AuthTokens> {
     const googleUser = await verifyGoogleToken(dto.idToken);
 
-    const user = await this.userRepo.findOrCreate({
+    const { user, isNew } = await this.userRepo.findOrCreate({
       email: googleUser.email,
       name: googleUser.name,
     });
@@ -56,7 +56,7 @@ export class AuthService {
       userAgent: dto.deviceInfo,
     });
 
-    return this.createAuthTokens(user, dto.deviceInfo, dto.ipAddress);
+    return this.createAuthTokens(user, dto.deviceInfo, dto.ipAddress, isNew);
   }
 
   async refreshAccessToken(dto: RefreshTokenDTO): Promise<AuthTokens> {
@@ -390,12 +390,23 @@ export class AuthService {
     };
   }
 
+  async selectRole(userId: string, role: "STUDENT" | "INSTRUCTOR"): Promise<User> {
+    const user = await this.userRepo.findById(userId);
+    if (!user) {
+      throw new AppError(404, "User not found", ErrorCode.AUTH_USER_NOT_FOUND);
+    }
+
+    const updated = await this.userRepo.update(userId, { role });
+    return updated!;
+  }
+
   // --- Private helpers ---
 
   private async createAuthTokens(
     user: User,
     deviceInfo?: string,
     ipAddress?: string,
+    isNewUser?: boolean,
   ): Promise<AuthTokens> {
     const payload: JwtPayload = {
       sub: user.id,
@@ -423,6 +434,7 @@ export class AuthService {
         name: user.name,
         role: user.role,
       },
+      ...(isNewUser !== undefined ? { isNewUser } : {}),
     };
   }
 

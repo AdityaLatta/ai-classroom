@@ -445,9 +445,12 @@ describe("AuthService", () => {
         name: "Google User",
       });
       mockUserRepo.findOrCreate.mockResolvedValue({
-        ...mockUser,
-        email: "google@example.com",
-        authProvider: "google" as const,
+        user: {
+          ...mockUser,
+          email: "google@example.com",
+          authProvider: "google" as const,
+        },
+        isNew: false,
       });
       mockRefreshTokenRepo.create.mockResolvedValue({
         id: "rt-1",

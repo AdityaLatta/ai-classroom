@@ -42,20 +42,22 @@ export class UserRepository implements IUserRepository {
     return this.mapRow(result.rows[0]);
   }
 
-  async findOrCreate(data: CreateUserDTO): Promise<User> {
+  async findOrCreate(data: CreateUserDTO): Promise<{ user: User; isNew: boolean }> {
     const role = data.role || "STUDENT";
 
     // Use INSERT ... ON CONFLICT to handle race conditions atomically.
     // Only update name on conflict (not role or other fields) to avoid overwriting.
+    // xmax = 0 means the row was freshly inserted (new user); otherwise it was updated (existing).
     const result = await this.query().query(
       `INSERT INTO users (email, name, role, email_verified, auth_provider)
        VALUES ($1, $2, $3, true, 'google')
        ON CONFLICT (email) DO UPDATE SET name = EXCLUDED.name
-       RETURNING ${USER_COLUMNS}`,
+       RETURNING ${USER_COLUMNS}, (xmax = 0) AS is_new`,
       [data.email, data.name, role],
     );
 
-    return this.mapRow(result.rows[0]);
+    const row = result.rows[0];
+    return { user: this.mapRow(row), isNew: Boolean(row.is_new) };
   }
 
   async update(
