@@ -1,12 +1,26 @@
 import { Request, Response } from "express";
 import { CourseService } from "./course.service";
-import { AppResponse, asyncHandler, audit } from "@/utils";
+import { AppResponse, audit, Get, Post, Put, Delete } from "@/utils";
 import { ListCoursesQuery } from "./course.schemas";
+import {
+  requireAuth,
+  requireRole,
+  validate,
+  validateParams,
+  validateQuery,
+} from "@/middlewares";
+import {
+  createCourseSchema,
+  updateCourseSchema,
+  courseIdSchema,
+  listCoursesQuerySchema,
+} from "./course.schemas";
 
 export class CourseController {
   constructor(private readonly service: CourseService) {}
 
-  listCourses = asyncHandler(async (req: Request, res: Response) => {
+  @Get("/", requireAuth, validateQuery(listCoursesQuerySchema))
+  async listCourses(req: Request, res: Response) {
     const query = req.validated.query as ListCoursesQuery;
 
     const result = await this.service.listCourses({
@@ -20,9 +34,10 @@ export class CourseController {
     });
 
     AppResponse.paginated(res, result.data, result.meta);
-  });
+  }
 
-  createCourse = asyncHandler(async (req: Request, res: Response) => {
+  @Post("/", requireAuth, requireRole("INSTRUCTOR", "ADMIN"), validate(createCourseSchema))
+  async createCourse(req: Request, res: Response) {
     const instructorId = req.user!.id;
     const course = await this.service.createCourse(instructorId, req.body);
 
@@ -33,15 +48,17 @@ export class CourseController {
     });
 
     AppResponse.created(res, course);
-  });
+  }
 
-  getCourse = asyncHandler(async (req: Request, res: Response) => {
+  @Get("/:id", requireAuth, validateParams(courseIdSchema))
+  async getCourse(req: Request, res: Response) {
     const { id } = req.validated.params as { id: string };
     const course = await this.service.getCourse(id);
     AppResponse.ok(res, course);
-  });
+  }
 
-  updateCourse = asyncHandler(async (req: Request, res: Response) => {
+  @Put("/:id", requireAuth, requireRole("INSTRUCTOR", "ADMIN"), validateParams(courseIdSchema), validate(updateCourseSchema))
+  async updateCourse(req: Request, res: Response) {
     const userId = req.user!.id;
     const { id } = req.validated.params as { id: string };
     const course = await this.service.updateCourse(id, userId, req.body);
@@ -53,9 +70,10 @@ export class CourseController {
     });
 
     AppResponse.ok(res, course);
-  });
+  }
 
-  deleteCourse = asyncHandler(async (req: Request, res: Response) => {
+  @Delete("/:id", requireAuth, requireRole("INSTRUCTOR", "ADMIN"), validateParams(courseIdSchema))
+  async deleteCourse(req: Request, res: Response) {
     const userId = req.user!.id;
     const { id } = req.validated.params as { id: string };
     await this.service.deleteCourse(id, userId);
@@ -67,5 +85,5 @@ export class CourseController {
     });
 
     AppResponse.message(res, "Course deleted successfully");
-  });
+  }
 }

@@ -6,7 +6,7 @@ import { RefreshTokenRepository } from "./refreshToken.repository";
 import { EmailVerificationRepository } from "./emailVerification.repository";
 import { PasswordResetRepository } from "./passwordReset.repository";
 import { TokenCleanupJob } from "@/jobs/tokenCleanup";
-import { createAuthRouter } from "./auth.routes";
+import { buildRouter } from "@/utils";
 
 // --- Composition root for auth module ---
 const userRepository = new UserRepository();
@@ -28,7 +28,7 @@ const authService = new AuthService(
 );
 const authController = new AuthController(authService);
 
-export const authRouter = createAuthRouter(authController);
+export const authRouter = buildRouter(authController);
 
 export const authModule = {
   start: () => {

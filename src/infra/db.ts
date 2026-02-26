@@ -41,6 +41,9 @@ export async function initDb(): Promise<void> {
     idleTimeoutMillis: DB_POOL_IDLE_TIMEOUT_MS,
     connectionTimeoutMillis: DB_POOL_CONNECTION_TIMEOUT_MS,
     ssl: sslConfig,
+    // Keepalive: detect dead connections from cloud providers (Aiven, RDS, etc.)
+    keepAlive: true,
+    keepAliveInitialDelayMillis: 10_000,
   });
 
   pool.on("error", (err) => {

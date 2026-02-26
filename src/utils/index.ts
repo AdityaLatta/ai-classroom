@@ -15,3 +15,4 @@ export {
 export { stripHtml, escapeLikePattern, escapeHtml } from "./sanitize";
 export { audit } from "./audit";
 export type { AuditAction } from "./audit";
+export { Get, Post, Put, Delete, Patch, buildRouter } from "./decorators";

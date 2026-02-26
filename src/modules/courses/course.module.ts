@@ -1,11 +1,11 @@
 import { CourseRepository } from "./course.repository";
 import { CourseService } from "./course.service";
 import { CourseController } from "./course.controller";
-import { createCourseRouter } from "./course.routes";
+import { buildRouter } from "@/utils";
 
 // --- Composition root for course module ---
 const courseRepository = new CourseRepository();
 const courseService = new CourseService(courseRepository);
 const courseController = new CourseController(courseService);
 
-export const courseRouter = createCourseRouter(courseController);
+export const courseRouter = buildRouter(courseController);
