@@ -1,7 +1,7 @@
 import { CourseRepository } from "./course.repository";
 import { CourseService } from "./course.service";
 import { CourseController } from "./course.controller";
-import { buildRouter } from "@/utils";
+import { buildRouter, ModuleDefinition } from "@/utils";
 
 // --- Composition root for course module ---
 const courseRepository = new CourseRepository();
@@ -9,3 +9,7 @@ const courseService = new CourseService(courseRepository);
 const courseController = new CourseController(courseService);
 
 export const courseRouter = buildRouter(courseController);
+
+export const moduleDefinition: ModuleDefinition = {
+  router: courseRouter,
+};

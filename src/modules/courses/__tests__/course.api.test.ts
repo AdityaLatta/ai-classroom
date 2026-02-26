@@ -36,7 +36,7 @@ describe("Course API", () => {
   };
 
   beforeAll(() => {
-    app = createApp();
+    ({ app } = createApp());
     authToken = signAccessToken(userPayload);
   });
 

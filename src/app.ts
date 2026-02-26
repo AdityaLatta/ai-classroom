@@ -4,9 +4,7 @@ import helmet from "helmet";
 import cookieParser from "cookie-parser";
 
 import { getEnv } from "@/config";
-import { authRouter } from "@/modules/auth/auth.module";
-import { courseRouter } from "@/modules/courses/course.module";
-import { ErrorCode } from "@/utils";
+import { ErrorCode, loadModules, LoadedModule } from "@/utils";
 import {
   errorHandler,
   apiLimiter,
@@ -23,7 +21,7 @@ import {
   getMailer,
 } from "@/infra";
 
-export function createApp() {
+export function createApp(): { app: express.Express; modules: LoadedModule[] } {
   const app = express();
   const env = getEnv();
 
@@ -103,9 +101,11 @@ export function createApp() {
       });
   });
 
-  // ---- API v1 routes ----
-  app.use("/api/v1/auth", authRouter);
-  app.use("/api/v1/courses", courseRouter);
+  // ---- Auto-discover and mount module routes ----
+  const modules = loadModules();
+  for (const mod of modules) {
+    app.use(`/api/v1/${mod.prefix}`, mod.definition.router);
+  }
 
   // ---- 404 ----
   app.use((req, res) => {
@@ -122,5 +122,5 @@ export function createApp() {
   // ---- Error handler (last) ----
   app.use(errorHandler);
 
-  return app;
+  return { app, modules };
 }

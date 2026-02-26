@@ -6,7 +6,7 @@ import { RefreshTokenRepository } from "./refreshToken.repository";
 import { EmailVerificationRepository } from "./emailVerification.repository";
 import { PasswordResetRepository } from "./passwordReset.repository";
 import { TokenCleanupJob } from "@/jobs/tokenCleanup";
-import { buildRouter } from "@/utils";
+import { buildRouter, ModuleDefinition } from "@/utils";
 
 // --- Composition root for auth module ---
 const userRepository = new UserRepository();
@@ -39,4 +39,9 @@ export const authModule = {
     loginAttemptTracker.stopCleanup();
     tokenCleanupJob.stop();
   },
+};
+
+export const moduleDefinition: ModuleDefinition = {
+  router: authRouter,
+  lifecycle: authModule,
 };

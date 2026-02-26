@@ -71,7 +71,7 @@ describe("Auth API - Email/Password", () => {
   };
 
   beforeAll(() => {
-    app = createApp();
+    ({ app } = createApp());
     authToken = signAccessToken(userPayload);
   });
 

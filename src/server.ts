@@ -3,18 +3,21 @@ import { createApp } from "@/app";
 import { loadEnv, getEnv } from "@/config";
 import { initDb, closeDb, initWebSocket } from "@/infra";
 import { initLogger, logger } from "@/utils";
-import { authModule } from "@/modules/auth/auth.module";
 
 async function startServer() {
   loadEnv();
   initLogger();
   await initDb();
 
-  const app = createApp();
+  const { app, modules } = createApp();
   const server = http.createServer(app);
 
   initWebSocket(server);
-  authModule.start();
+
+  // Start all module lifecycle hooks
+  for (const mod of modules) {
+    mod.definition.lifecycle?.start();
+  }
 
   const { PORT, SHUTDOWN_TIMEOUT_MS } = getEnv();
 
@@ -29,7 +32,11 @@ async function startServer() {
     isShuttingDown = true;
 
     logger.info({ signal }, "Graceful shutdown initiated");
-    authModule.stop();
+
+    // Stop all module lifecycle hooks
+    for (const mod of modules) {
+      mod.definition.lifecycle?.stop();
+    }
 
     // Force exit after timeout to prevent hanging
     const forceTimer = setTimeout(() => {
