@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from "express";
+import { logger } from "@/utils";
 import { tryGetContext } from "@/infra/requestContext";
 
 export function httpLogger(
@@ -8,12 +9,17 @@ export function httpLogger(
 ): void {
   const startTime = Date.now();
 
+  // Capture the ALS context reference eagerly while guaranteed to be in scope.
+  // The queryStats object is mutated in-place by instrumentedPool, so reading
+  // it later in the "finish" callback still reflects the final accumulated stats
+  // even if the ALS store becomes unreachable after the response flushes.
+  const ctx = tryGetContext();
+
   // Log when response finishes
   res.on("finish", () => {
     const duration = Date.now() - startTime;
-    const log = req.log;
+    const log = req.log ?? logger;
 
-    const ctx = tryGetContext();
     const queryStats = ctx?.queryStats;
 
     const logData: Record<string, unknown> = {

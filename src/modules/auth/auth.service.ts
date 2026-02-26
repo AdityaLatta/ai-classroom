@@ -14,6 +14,7 @@ import {
   verificationEmailHtml,
   passwordResetEmailHtml,
   withTransaction,
+  tryGetContext,
 } from "@/infra";
 import { eventBus } from "@/infra/eventBus";
 import { IUserRepository, User } from "@/modules/users/user.types";
@@ -87,7 +88,8 @@ export class AuthService {
     const tokenHash = hashRefreshToken(refreshToken);
     await this.refreshTokenRepo.revokeByHash(tokenHash);
 
-    eventBus.emit("auth:logout", {});
+    const ctx = tryGetContext();
+    eventBus.emit("auth:logout", { userId: ctx?.userId });
   }
 
   async logoutAll(userId: string): Promise<void> {
@@ -393,7 +395,10 @@ export class AuthService {
     }
 
     const updated = await this.userRepo.update(userId, { role });
-    return updated!;
+    if (!updated) {
+      throw new AppError(404, "User not found", ErrorCode.AUTH_USER_NOT_FOUND);
+    }
+    return updated;
   }
 
   // --- Private helpers ---

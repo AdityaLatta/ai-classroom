@@ -38,6 +38,16 @@ class EventBus {
     this.handlers.set(event, list);
   }
 
+  off<K extends keyof DomainEventMap>(
+    event: K,
+    handler: EventHandler<DomainEventMap[K]>,
+  ): void {
+    const list = this.handlers.get(event);
+    if (!list) return;
+    const idx = list.indexOf(handler as EventHandler<unknown>);
+    if (idx !== -1) list.splice(idx, 1);
+  }
+
   emit<K extends keyof DomainEventMap>(
     event: K,
     payload: DomainEventMap[K],
@@ -58,6 +68,11 @@ class EventBus {
         logger.error({ err, event }, "Event handler failed");
       }
     }
+  }
+
+  /** Remove all handlers. Useful for test teardown. */
+  clearAll(): void {
+    this.handlers.clear();
   }
 }
 

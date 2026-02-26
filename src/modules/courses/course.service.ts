@@ -41,8 +41,11 @@ export class CourseService {
     }
 
     const updated = await this.repo.update(courseId, dto);
-    invalidateCache("getCourse:");
-    return updated!;
+    if (!updated) {
+      throw new AppError(404, "Course not found", ErrorCode.COURSE_NOT_FOUND);
+    }
+    invalidateCache("CourseService.getCourse:");
+    return updated;
   }
 
   async deleteCourse(courseId: string, userId: string): Promise<void> {
@@ -55,6 +58,6 @@ export class CourseService {
     }
 
     await this.repo.delete(courseId);
-    invalidateCache("getCourse:");
+    invalidateCache("CourseService.getCourse:");
   }
 }

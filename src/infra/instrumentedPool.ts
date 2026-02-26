@@ -1,4 +1,4 @@
-import { Pool, QueryConfig, QueryResult, QueryResultRow } from "pg";
+import { Pool, PoolClient, QueryConfig, QueryResult, QueryResultRow } from "pg";
 import { logger } from "@/utils/logger";
 import { tryGetContext, QueryStats } from "./requestContext";
 
@@ -15,33 +15,54 @@ export function instrumentPool(pool: Pool): void {
   pool.query = async function instrumentedQuery(
     ...args: unknown[]
   ): Promise<QueryResult<QueryResultRow>> {
-    const start = performance.now();
-
-    try {
-      const result = await (originalQuery as (...a: unknown[]) => Promise<QueryResult>)(
-        ...args,
-      );
-
-      const durationMs = Math.round((performance.now() - start) * 100) / 100;
-      recordStats(durationMs);
-
-      if (durationMs > SLOW_QUERY_THRESHOLD_MS) {
-        const queryText = typeof args[0] === "string"
-          ? args[0]
-          : (args[0] as QueryConfig)?.text ?? "unknown";
-        logger.warn(
-          { durationMs, query: queryText.slice(0, 200) },
-          "Slow query detected",
-        );
-      }
-
-      return result;
-    } catch (error) {
-      const durationMs = Math.round((performance.now() - start) * 100) / 100;
-      recordStats(durationMs);
-      throw error;
-    }
+    return instrumentedQueryCall(originalQuery, args);
   } as Pool["query"];
+}
+
+/**
+ * Patches a PoolClient's query method with timing and stats.
+ * Call this after pool.connect() to capture transaction queries.
+ */
+export function instrumentClient(client: PoolClient): void {
+  const originalQuery = client.query.bind(client);
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  (client as any).query = async function instrumentedClientQuery(
+    ...args: unknown[]
+  ): Promise<QueryResult<QueryResultRow>> {
+    return instrumentedQueryCall(originalQuery, args);
+  };
+}
+
+async function instrumentedQueryCall(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  originalQuery: (...a: any[]) => Promise<QueryResult>,
+  args: unknown[],
+): Promise<QueryResult<QueryResultRow>> {
+  const start = performance.now();
+
+  try {
+    const result = await originalQuery(...args);
+
+    const durationMs = Math.round((performance.now() - start) * 100) / 100;
+    recordStats(durationMs);
+
+    if (durationMs > SLOW_QUERY_THRESHOLD_MS) {
+      const queryText = typeof args[0] === "string"
+        ? args[0]
+        : (args[0] as QueryConfig)?.text ?? "unknown";
+      logger.warn(
+        { durationMs, query: queryText.slice(0, 200) },
+        "Slow query detected",
+      );
+    }
+
+    return result;
+  } catch (error) {
+    const durationMs = Math.round((performance.now() - start) * 100) / 100;
+    recordStats(durationMs);
+    throw error;
+  }
 }
 
 function recordStats(durationMs: number): void {

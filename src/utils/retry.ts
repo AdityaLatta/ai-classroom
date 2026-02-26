@@ -31,6 +31,7 @@ export async function withRetry<T>(
   opts?: RetryOptions,
 ): Promise<T> {
   const resolved = { ...DEFAULT_OPTIONS, ...opts };
+  resolved.attempts = Math.max(1, resolved.attempts);
   let lastError: unknown;
 
   for (let attempt = 1; attempt <= resolved.attempts; attempt++) {
@@ -67,6 +68,7 @@ export function Retry(opts?: RetryOptions) {
     _context: ClassMethodDecoratorContext,
   ): T {
     const resolved = { ...DEFAULT_OPTIONS, ...opts };
+    resolved.attempts = Math.max(1, resolved.attempts);
 
     const wrapper = async function (this: unknown, ...args: Parameters<T>): Promise<Awaited<ReturnType<T>>> {
       let lastError: unknown;

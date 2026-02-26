@@ -118,7 +118,7 @@ export function createApp(): { app: express.Express; modules: LoadedModule[] } {
     const status = allOk ? "ok" : "degraded";
 
     res
-      .status(dbOk ? 200 : 503)
+      .status(allOk ? 200 : 503)
       .json({
         status,
         timestamp: new Date().toISOString(),

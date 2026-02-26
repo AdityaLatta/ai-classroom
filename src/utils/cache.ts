@@ -37,9 +37,11 @@ export function Cache(opts: CacheOptions) {
     const methodName = String(context.name);
 
     const wrapper = async function (this: unknown, ...args: Parameters<T>): Promise<Awaited<ReturnType<T>>> {
+      // Include class name in key to avoid collisions across services
+      const className = this?.constructor?.name ?? "_";
       const cacheKey = opts.key
-        ? `${methodName}:${opts.key(...args)}`
-        : `${methodName}:${JSON.stringify(args)}`;
+        ? `${className}.${methodName}:${opts.key(...args)}`
+        : `${className}.${methodName}:${JSON.stringify(args)}`;
 
       const cached = cache.get(cacheKey);
       if (cached !== undefined) {

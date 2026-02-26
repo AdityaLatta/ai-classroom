@@ -47,19 +47,22 @@ export async function sendEmail(
 
 export function verificationEmailHtml(name: string, verifyUrl: string): string {
   const safeName = escapeHtml(name);
-  const safeUrl = escapeHtml(verifyUrl);
+  // For href: only guard against breaking out of the attribute
+  const hrefUrl = verifyUrl.replace(/"/g, "%22");
+  // For display text: full HTML escaping
+  const displayUrl = escapeHtml(verifyUrl);
   return `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
       <h2>Verify Your Email Address</h2>
       <p>Hi ${safeName},</p>
       <p>Thank you for registering. Please click the button below to verify your email address:</p>
       <p style="text-align: center; margin: 30px 0;">
-        <a href="${safeUrl}" style="background-color: #4F46E5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">
+        <a href="${hrefUrl}" style="background-color: #4F46E5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">
           Verify Email
         </a>
       </p>
       <p>Or copy and paste this link into your browser:</p>
-      <p style="word-break: break-all; color: #6B7280;">${safeUrl}</p>
+      <p style="word-break: break-all; color: #6B7280;">${displayUrl}</p>
       <p>This link expires in 24 hours.</p>
       <hr style="border: none; border-top: 1px solid #E5E7EB; margin: 20px 0;" />
       <p style="color: #9CA3AF; font-size: 12px;">If you did not create an account, please ignore this email.</p>
@@ -72,19 +75,20 @@ export function passwordResetEmailHtml(
   resetUrl: string,
 ): string {
   const safeName = escapeHtml(name);
-  const safeUrl = escapeHtml(resetUrl);
+  const hrefUrl = resetUrl.replace(/"/g, "%22");
+  const displayUrl = escapeHtml(resetUrl);
   return `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
       <h2>Reset Your Password</h2>
       <p>Hi ${safeName},</p>
       <p>We received a request to reset your password. Click the button below to set a new password:</p>
       <p style="text-align: center; margin: 30px 0;">
-        <a href="${safeUrl}" style="background-color: #4F46E5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">
+        <a href="${hrefUrl}" style="background-color: #4F46E5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">
           Reset Password
         </a>
       </p>
       <p>Or copy and paste this link into your browser:</p>
-      <p style="word-break: break-all; color: #6B7280;">${safeUrl}</p>
+      <p style="word-break: break-all; color: #6B7280;">${displayUrl}</p>
       <p>This link expires in 1 hour.</p>
       <hr style="border: none; border-top: 1px solid #E5E7EB; margin: 20px 0;" />
       <p style="color: #9CA3AF; font-size: 12px;">If you did not request a password reset, please ignore this email. Your password will remain unchanged.</p>

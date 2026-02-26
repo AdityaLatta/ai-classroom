@@ -20,8 +20,9 @@ export class TokenCleanupJob {
   ) {}
 
   start(): void {
-    this.clean();
+    void this.clean();
     this.intervalId = setInterval(() => this.clean(), CLEANUP_INTERVAL_MS);
+    this.intervalId.unref();
     logger.info("Token cleanup job started (interval: 1h)");
   }
 

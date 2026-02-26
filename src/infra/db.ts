@@ -2,7 +2,7 @@
 import { Pool, PoolClient } from "pg";
 import { getEnv } from "@/config";
 import { logger } from "@/utils";
-import { instrumentPool } from "./instrumentedPool";
+import { instrumentPool, instrumentClient } from "./instrumentedPool";
 
 let pool: Pool | null = null;
 
@@ -86,6 +86,7 @@ export async function withTransaction<T>(
 ): Promise<T> {
   const db = getDb();
   const client = await db.connect();
+  instrumentClient(client);
 
   try {
     await client.query("BEGIN");
@@ -93,7 +94,11 @@ export async function withTransaction<T>(
     await client.query("COMMIT");
     return result;
   } catch (error) {
-    await client.query("ROLLBACK");
+    try {
+      await client.query("ROLLBACK");
+    } catch (rollbackErr) {
+      logger.error({ err: rollbackErr }, "Rollback failed");
+    }
     logger.error({ err: error }, "Transaction rolled back");
     throw error;
   } finally {
@@ -106,6 +111,7 @@ export async function withClient<T>(
 ): Promise<T> {
   const db = getDb();
   const client = await db.connect();
+  instrumentClient(client);
 
   try {
     return await callback(client);

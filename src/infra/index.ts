@@ -25,7 +25,7 @@ export { initWebSocket } from "./websocket";
 export { emailSchema, passwordSchema, uuidSchema } from "./openapi";
 export { eventBus } from "./eventBus";
 export type { DomainEventMap } from "./eventBus";
-export { instrumentPool, getQueryStats } from "./instrumentedPool";
+export { instrumentPool, instrumentClient, getQueryStats } from "./instrumentedPool";
 export {
   runWithContext,
   getContext,

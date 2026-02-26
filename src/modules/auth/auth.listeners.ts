@@ -59,6 +59,6 @@ export function registerAuthListeners(): void {
   });
 
   eventBus.on("auth:account-locked-check", (p) => {
-    audit({ action: "ACCOUNT_LOCKED", email: p.email, metadata: { minutesLeft: p.minutesLeft } });
+    audit({ action: "ACCOUNT_LOCKED_CHECK", email: p.email, metadata: { minutesLeft: p.minutesLeft } });
   });
 }

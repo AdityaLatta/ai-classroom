@@ -1,7 +1,7 @@
 // src/auth/google.ts
 import { OAuth2Client } from "google-auth-library";
 import { getEnv } from "@/config";
-import { AppError } from "@/utils";
+import { AppError, ErrorCode } from "@/utils";
 import { withRetry } from "@/utils/retry";
 
 let client: OAuth2Client | null = null;
@@ -10,7 +10,7 @@ function getClient(): OAuth2Client {
   if (!client) {
     const { GOOGLE_CLIENT_ID } = getEnv();
     if (!GOOGLE_CLIENT_ID) {
-      throw new AppError(500, "Google OAuth not configured", "AUTH_GOOGLE_NOT_CONFIGURED");
+      throw new AppError(500, "Google OAuth not configured", ErrorCode.AUTH_GOOGLE_NOT_CONFIGURED);
     }
     client = new OAuth2Client(GOOGLE_CLIENT_ID);
   }
@@ -30,7 +30,7 @@ export async function verifyGoogleToken(idToken: string) {
   const { GOOGLE_CLIENT_ID } = getEnv();
 
   if (!GOOGLE_CLIENT_ID) {
-    throw new AppError(500, "Google OAuth not configured");
+    throw new AppError(500, "Google OAuth not configured", ErrorCode.AUTH_GOOGLE_NOT_CONFIGURED);
   }
 
   const ticket = await withRetry(
@@ -44,7 +44,7 @@ export async function verifyGoogleToken(idToken: string) {
 
   const payload = ticket.getPayload();
   if (!payload?.email) {
-    throw new AppError(401, "Invalid Google token", "AUTH_GOOGLE_TOKEN_INVALID");
+    throw new AppError(401, "Invalid Google token", ErrorCode.AUTH_GOOGLE_TOKEN_INVALID);
   }
 
   return {

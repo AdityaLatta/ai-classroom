@@ -12,8 +12,10 @@ export class LoginAttemptTracker {
     const entry = this.attempts.get(email);
     if (!entry) return;
 
-    if (entry.lockedUntil > Date.now()) {
-      const minutesLeft = Math.ceil((entry.lockedUntil - Date.now()) / 60000);
+    const now = Date.now();
+
+    if (entry.lockedUntil > now) {
+      const minutesLeft = Math.ceil((entry.lockedUntil - now) / 60000);
       eventBus.emit("auth:account-locked-check", { email, minutesLeft });
       throw new AppError(
         429,
@@ -23,9 +25,7 @@ export class LoginAttemptTracker {
     }
 
     // Lock expired, clear it
-    if (entry.lockedUntil <= Date.now()) {
-      this.attempts.delete(email);
-    }
+    this.attempts.delete(email);
   }
 
   recordFailure(email: string, ip?: string): void {
@@ -84,6 +84,10 @@ export class LoginAttemptTracker {
     const now = Date.now();
     for (const [email, entry] of this.attempts) {
       if (entry.lockedUntil > 0 && entry.lockedUntil <= now) {
+        // Expired lockout
+        this.attempts.delete(email);
+      } else if (entry.lockedUntil === 0) {
+        // Sub-threshold failure entries with no active lockout — purge to prevent unbounded growth
         this.attempts.delete(email);
       }
     }
