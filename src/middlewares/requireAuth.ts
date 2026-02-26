@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import { verifyAccessToken } from "@/auth/jwt";
 import { AppError, ErrorCode } from "@/utils";
+import { enrichContext } from "@/infra/requestContext";
 
 export function requireAuth(
   req: Request,
@@ -27,6 +28,8 @@ export function requireAuth(
       role: payload.role,
       email: payload.email,
     };
+
+    enrichContext({ userId: payload.sub, email: payload.email, role: payload.role });
 
     next();
   } catch (error) {

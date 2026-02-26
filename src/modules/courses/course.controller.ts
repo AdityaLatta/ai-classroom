@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import { CourseService } from "./course.service";
-import { AppResponse, audit, Get, Post, Put, Delete } from "@/utils";
+import { AppResponse, Get, Post, Put, Delete } from "@/utils";
 import { ListCoursesQuery } from "./course.schemas";
 import {
   requireAuth,
@@ -15,6 +15,7 @@ import {
   courseIdSchema,
   listCoursesQuerySchema,
 } from "./course.schemas";
+import { eventBus } from "@/infra/eventBus";
 
 export class CourseController {
   constructor(private readonly service: CourseService) {}
@@ -41,10 +42,10 @@ export class CourseController {
     const instructorId = req.user!.id;
     const course = await this.service.createCourse(instructorId, req.body);
 
-    audit({
-      action: "COURSE_CREATED",
+    eventBus.emit("course:created", {
       userId: instructorId,
-      metadata: { courseId: course.id, title: course.title },
+      courseId: course.id,
+      title: course.title,
     });
 
     AppResponse.created(res, course);
@@ -63,10 +64,10 @@ export class CourseController {
     const { id } = req.validated.params as { id: string };
     const course = await this.service.updateCourse(id, userId, req.body);
 
-    audit({
-      action: "COURSE_UPDATED",
+    eventBus.emit("course:updated", {
       userId,
-      metadata: { courseId: course.id, title: course.title },
+      courseId: course.id,
+      title: course.title,
     });
 
     AppResponse.ok(res, course);
@@ -78,10 +79,9 @@ export class CourseController {
     const { id } = req.validated.params as { id: string };
     await this.service.deleteCourse(id, userId);
 
-    audit({
-      action: "COURSE_DELETED",
+    eventBus.emit("course:deleted", {
       userId,
-      metadata: { courseId: id },
+      courseId: id,
     });
 
     AppResponse.message(res, "Course deleted successfully");

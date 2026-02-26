@@ -12,6 +12,10 @@ export interface ModuleDefinition {
     start: () => void;
     stop: () => void;
   };
+  /** Register domain event listeners for this module */
+  listeners?: () => void;
+  /** Module health check */
+  healthCheck?: () => Promise<{ ok: boolean; details?: Record<string, unknown> }>;
 }
 
 export interface LoadedModule {
@@ -54,6 +58,12 @@ export function loadModules(): LoadedModule[] {
 
     const definition = mod.moduleDefinition as ModuleDefinition;
     const prefix = definition.prefix ?? dirName;
+
+    // Register event listeners if provided
+    if (definition.listeners) {
+      definition.listeners();
+      logger.info({ module: dirName }, "Listeners registered");
+    }
 
     loaded.push({ name: dirName, prefix, definition });
     logger.info(

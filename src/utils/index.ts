@@ -18,3 +18,5 @@ export type { AuditAction } from "./audit";
 export { Get, Post, Put, Delete, Patch, buildRouter } from "./decorators";
 export { loadModules } from "./moduleLoader";
 export type { ModuleDefinition, LoadedModule } from "./moduleLoader";
+export { Retry, withRetry } from "./retry";
+export { Cache, invalidateCache, clearCache, getCacheStats } from "./cache";

@@ -1,4 +1,5 @@
 import { logger } from "./logger";
+import { tryGetContext } from "@/infra/requestContext";
 
 export type AuditAction =
   | "USER_REGISTERED"
@@ -39,5 +40,15 @@ function getAuditLog() {
 }
 
 export function audit(entry: AuditEntry): void {
-  getAuditLog().info(entry, `AUDIT: ${entry.action}`);
+  const ctx = tryGetContext();
+  const enriched: AuditEntry = {
+    ...entry,
+    ip: entry.ip ?? ctx?.ip,
+    userAgent: entry.userAgent ?? ctx?.userAgent,
+    metadata: {
+      ...entry.metadata,
+      ...(ctx?.requestId ? { requestId: ctx.requestId } : {}),
+    },
+  };
+  getAuditLog().info(enriched, `AUDIT: ${entry.action}`);
 }

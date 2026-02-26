@@ -1,6 +1,8 @@
 import nodemailer, { Transporter } from "nodemailer";
 import { getEnv } from "@/config";
 import { logger, escapeHtml } from "@/utils";
+import { withRetry } from "@/utils/retry";
+import { tryGetContext } from "./requestContext";
 
 let transporter: Transporter | null = null;
 
@@ -31,8 +33,12 @@ export async function sendEmail(
   const mailer = getMailer();
 
   try {
-    await mailer.sendMail({ from: SMTP_FROM, to, subject, html });
-    logger.info({ to, subject }, "Email sent successfully");
+    await withRetry(
+      () => mailer.sendMail({ from: SMTP_FROM, to, subject, html }),
+      { attempts: 3, backoff: "exponential", delayMs: 1000 },
+    );
+    const ctx = tryGetContext();
+    logger.info({ to, subject, requestId: ctx?.requestId }, "Email sent successfully");
   } catch (error) {
     logger.error({ err: error, to, subject }, "Failed to send email");
     throw error;

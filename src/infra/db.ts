@@ -2,6 +2,7 @@
 import { Pool, PoolClient } from "pg";
 import { getEnv } from "@/config";
 import { logger } from "@/utils";
+import { instrumentPool } from "./instrumentedPool";
 
 let pool: Pool | null = null;
 
@@ -45,6 +46,8 @@ export async function initDb(): Promise<void> {
     keepAlive: true,
     keepAliveInitialDelayMillis: 10_000,
   });
+
+  instrumentPool(pool);
 
   pool.on("error", (err) => {
     logger.error({ err }, "Unexpected database pool error");

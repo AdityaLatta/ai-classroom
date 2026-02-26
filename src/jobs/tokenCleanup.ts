@@ -32,6 +32,10 @@ export class TokenCleanupJob {
     }
   }
 
+  isRunning(): boolean {
+    return this.intervalId !== null;
+  }
+
   private async clean(): Promise<void> {
     try {
       const db = getDb();

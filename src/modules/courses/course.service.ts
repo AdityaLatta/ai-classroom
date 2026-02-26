@@ -1,6 +1,6 @@
 // src/modules/courses/course.service.ts
 import { ICourseRepository, CreateCourseDTO, UpdateCourseDTO, Course, ListCoursesOptions } from "./course.types";
-import { AppError, ErrorCode, PaginatedResult } from "@/utils";
+import { AppError, ErrorCode, PaginatedResult, Cache, invalidateCache } from "@/utils";
 
 export class CourseService {
   constructor(private readonly repo: ICourseRepository) {}
@@ -12,6 +12,7 @@ export class CourseService {
     return this.repo.createCourse(instructorId, dto);
   }
 
+  @Cache({ ttl: 30_000, key: (courseId: unknown) => `${courseId}` })
   async getCourse(courseId: string): Promise<Course> {
     const course = await this.repo.findById(courseId);
     if (!course) {
@@ -40,6 +41,7 @@ export class CourseService {
     }
 
     const updated = await this.repo.update(courseId, dto);
+    invalidateCache("getCourse:");
     return updated!;
   }
 
@@ -53,5 +55,6 @@ export class CourseService {
     }
 
     await this.repo.delete(courseId);
+    invalidateCache("getCourse:");
   }
 }

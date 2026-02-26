@@ -2,6 +2,7 @@
 import { OAuth2Client } from "google-auth-library";
 import { getEnv } from "@/config";
 import { AppError } from "@/utils";
+import { withRetry } from "@/utils/retry";
 
 let client: OAuth2Client | null = null;
 
@@ -16,6 +17,15 @@ function getClient(): OAuth2Client {
   return client;
 }
 
+function isTransientError(error: unknown): boolean {
+  if (error instanceof AppError) return false;
+  // Don't retry client errors (4xx)
+  const status = (error as { status?: number }).status ??
+    (error as { response?: { status?: number } }).response?.status;
+  if (status && status >= 400 && status < 500) return false;
+  return true;
+}
+
 export async function verifyGoogleToken(idToken: string) {
   const { GOOGLE_CLIENT_ID } = getEnv();
 
@@ -23,10 +33,14 @@ export async function verifyGoogleToken(idToken: string) {
     throw new AppError(500, "Google OAuth not configured");
   }
 
-  const ticket = await getClient().verifyIdToken({
-    idToken,
-    audience: GOOGLE_CLIENT_ID,
-  });
+  const ticket = await withRetry(
+    () =>
+      getClient().verifyIdToken({
+        idToken,
+        audience: GOOGLE_CLIENT_ID,
+      }),
+    { attempts: 3, backoff: "exponential", delayMs: 500, retryIf: isTransientError },
+  );
 
   const payload = ticket.getPayload();
   if (!payload?.email) {

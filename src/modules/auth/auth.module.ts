@@ -7,6 +7,7 @@ import { EmailVerificationRepository } from "./emailVerification.repository";
 import { PasswordResetRepository } from "./passwordReset.repository";
 import { TokenCleanupJob } from "@/jobs/tokenCleanup";
 import { buildRouter, ModuleDefinition } from "@/utils";
+import { registerAuthListeners } from "./auth.listeners";
 
 // --- Composition root for auth module ---
 const userRepository = new UserRepository();
@@ -44,4 +45,14 @@ export const authModule = {
 export const moduleDefinition: ModuleDefinition = {
   router: authRouter,
   lifecycle: authModule,
+  listeners: registerAuthListeners,
+  healthCheck: async () => {
+    return {
+      ok: true,
+      details: {
+        tokenCleanupRunning: tokenCleanupJob.isRunning(),
+        trackedLoginAttempts: loginAttemptTracker.getSize(),
+      },
+    };
+  },
 };

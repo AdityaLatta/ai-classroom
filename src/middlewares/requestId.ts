@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import { randomUUID } from "crypto";
 import { createChildLogger } from "@/utils";
+import { runWithContext } from "@/infra/requestContext";
 
 export const REQUEST_ID_HEADER = "X-Request-ID";
 
@@ -22,13 +23,22 @@ export function requestIdMiddleware(
 
   req.requestId = requestId;
 
-  req.log = createChildLogger({
+  const log = createChildLogger({
     requestId,
     method: req.method,
     url: req.url,
   });
+  req.log = log;
 
   res.setHeader(REQUEST_ID_HEADER, requestId);
 
-  next();
+  runWithContext(
+    {
+      requestId,
+      ip: req.ip,
+      userAgent: req.headers["user-agent"],
+      logger: log,
+    },
+    () => next(),
+  );
 }

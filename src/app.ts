@@ -4,7 +4,7 @@ import helmet from "helmet";
 import cookieParser from "cookie-parser";
 
 import { getEnv } from "@/config";
-import { ErrorCode, loadModules, LoadedModule } from "@/utils";
+import { ErrorCode, loadModules, LoadedModule, logger } from "@/utils";
 import {
   errorHandler,
   apiLimiter,
@@ -65,15 +65,25 @@ export function createApp(): { app: express.Express; modules: LoadedModule[] } {
   // ---- API Documentation ----
   setupSwagger(app);
 
-  // ---- Health check (verifies DB + SMTP connectivity) ----
+  // ---- Auto-discover and mount module routes ----
+  const modules = loadModules();
+  for (const mod of modules) {
+    app.use(`/api/v1/${mod.prefix}`, mod.definition.router);
+  }
+
+  // ---- Health check (verifies DB + SMTP + module health) ----
   let smtpCache: { ok: boolean; checkedAt: number } | null = null;
-  const SMTP_CACHE_TTL_MS = 30_000; // 30 seconds
+  let moduleHealthCache: {
+    results: Record<string, { ok: boolean; details?: Record<string, unknown> }>;
+    checkedAt: number;
+  } | null = null;
+  const HEALTH_CACHE_TTL_MS = 30_000; // 30 seconds
 
   app.get("/health", async (req, res) => {
     const dbOk = await healthCheck();
 
     let smtpOk = false;
-    if (smtpCache && Date.now() - smtpCache.checkedAt < SMTP_CACHE_TTL_MS) {
+    if (smtpCache && Date.now() - smtpCache.checkedAt < HEALTH_CACHE_TTL_MS) {
       smtpOk = smtpCache.ok;
     } else {
       try {
@@ -85,7 +95,26 @@ export function createApp(): { app: express.Express; modules: LoadedModule[] } {
       smtpCache = { ok: smtpOk, checkedAt: Date.now() };
     }
 
-    const allOk = dbOk && smtpOk;
+    // Module health checks (cached)
+    let moduleResults: Record<string, { ok: boolean; details?: Record<string, unknown> }> = {};
+    if (moduleHealthCache && Date.now() - moduleHealthCache.checkedAt < HEALTH_CACHE_TTL_MS) {
+      moduleResults = moduleHealthCache.results;
+    } else {
+      for (const mod of modules) {
+        if (mod.definition.healthCheck) {
+          try {
+            moduleResults[mod.name] = await mod.definition.healthCheck();
+          } catch (err) {
+            logger.error({ err, module: mod.name }, "Module health check failed");
+            moduleResults[mod.name] = { ok: false, details: { error: "health check threw" } };
+          }
+        }
+      }
+      moduleHealthCache = { results: moduleResults, checkedAt: Date.now() };
+    }
+
+    const modulesOk = Object.values(moduleResults).every((r) => r.ok);
+    const allOk = dbOk && smtpOk && modulesOk;
     const status = allOk ? "ok" : "degraded";
 
     res
@@ -98,14 +127,9 @@ export function createApp(): { app: express.Express; modules: LoadedModule[] } {
           database: dbOk ? "ok" : "error",
           smtp: smtpOk ? "ok" : "error",
         },
+        modules: moduleResults,
       });
   });
-
-  // ---- Auto-discover and mount module routes ----
-  const modules = loadModules();
-  for (const mod of modules) {
-    app.use(`/api/v1/${mod.prefix}`, mod.definition.router);
-  }
 
   // ---- 404 ----
   app.use((req, res) => {

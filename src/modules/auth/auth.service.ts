@@ -8,13 +8,14 @@ import {
   JwtPayload,
 } from "@/auth/jwt";
 import { getEnv } from "@/config";
-import { logger, AppError, ErrorCode, audit } from "@/utils";
+import { logger, AppError, ErrorCode, Cache } from "@/utils";
 import {
   sendEmail,
   verificationEmailHtml,
   passwordResetEmailHtml,
   withTransaction,
 } from "@/infra";
+import { eventBus } from "@/infra/eventBus";
 import { IUserRepository, User } from "@/modules/users/user.types";
 import {
   AuthTokens,
@@ -48,8 +49,7 @@ export class AuthService {
       name: googleUser.name,
     });
 
-    audit({
-      action: "USER_GOOGLE_LOGIN",
+    eventBus.emit("auth:google-login", {
       userId: user.id,
       email: user.email,
       ip: dto.ipAddress,
@@ -75,8 +75,7 @@ export class AuthService {
     // Revoke old refresh token (rotation for security)
     await this.refreshTokenRepo.revoke(storedToken.id);
 
-    audit({
-      action: "TOKEN_REFRESHED",
+    eventBus.emit("auth:token-refreshed", {
       userId: user.id,
       ip: dto.ipAddress,
     });
@@ -88,13 +87,13 @@ export class AuthService {
     const tokenHash = hashRefreshToken(refreshToken);
     await this.refreshTokenRepo.revokeByHash(tokenHash);
 
-    audit({ action: "USER_LOGOUT" });
+    eventBus.emit("auth:logout", {});
   }
 
   async logoutAll(userId: string): Promise<void> {
     await this.refreshTokenRepo.revokeAllForUser(userId);
 
-    audit({ action: "USER_LOGOUT_ALL", userId });
+    eventBus.emit("auth:logout-all", { userId });
   }
 
   async getCurrentUser(accessToken: string): Promise<User> {
@@ -113,6 +112,7 @@ export class AuthService {
     return user;
   }
 
+  @Cache({ ttl: 60_000, key: (userId: unknown) => `${userId}` })
   async getUserById(userId: string): Promise<User | null> {
     return this.userRepo.findById(userId);
   }
@@ -132,7 +132,7 @@ export class AuthService {
 
     await this.refreshTokenRepo.revoke(sessionId);
 
-    audit({ action: "SESSION_REVOKED", userId, metadata: { sessionId } });
+    eventBus.emit("auth:session-revoked", { userId, sessionId });
   }
 
   /**
@@ -163,8 +163,7 @@ export class AuthService {
 
     await this.sendVerificationEmail(user.id, user.email, user.name);
 
-    audit({
-      action: "USER_REGISTERED",
+    eventBus.emit("auth:registered", {
       userId: user.id,
       email: user.email,
     });
@@ -208,8 +207,7 @@ export class AuthService {
     // Clear lockout on successful login
     this.loginAttemptTracker.clear(dto.email);
 
-    audit({
-      action: "USER_LOGIN",
+    eventBus.emit("auth:login", {
       userId: user.id,
       email: user.email,
       ip: dto.ipAddress,
@@ -229,7 +227,7 @@ export class AuthService {
     await this.emailVerificationRepo.markUsed(tokenRecord.id);
     await this.userRepo.markEmailVerified(tokenRecord.userId);
 
-    audit({ action: "EMAIL_VERIFIED", userId: tokenRecord.userId });
+    eventBus.emit("auth:email-verified", { userId: tokenRecord.userId });
 
     return { message: "Email verified successfully. You can now log in." };
   }
@@ -276,8 +274,7 @@ export class AuthService {
       passwordResetEmailHtml(user.name, resetUrl),
     );
 
-    audit({
-      action: "PASSWORD_RESET_REQUESTED",
+    eventBus.emit("auth:password-reset-requested", {
       userId: user.id,
       email: user.email,
     });
@@ -308,8 +305,7 @@ export class AuthService {
       await this.userRepo.markEmailVerified(tokenRecord.userId, client);
     });
 
-    audit({
-      action: "PASSWORD_RESET_COMPLETED",
+    eventBus.emit("auth:password-reset-completed", {
       userId: tokenRecord.userId,
     });
 
@@ -342,7 +338,7 @@ export class AuthService {
     const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
     await this.userRepo.updatePasswordHash(userId, passwordHash);
 
-    audit({ action: "PASSWORD_SET", userId });
+    eventBus.emit("auth:password-set", { userId });
 
     return {
       message:
@@ -383,7 +379,7 @@ export class AuthService {
       await this.refreshTokenRepo.revokeAllForUser(userId, client);
     });
 
-    audit({ action: "PASSWORD_CHANGED", userId });
+    eventBus.emit("auth:password-changed", { userId });
 
     return {
       message: "Password changed successfully. Please log in again.",

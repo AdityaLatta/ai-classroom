@@ -23,3 +23,13 @@ export {
 export { setupSwagger, getSwaggerSpec } from "./swagger";
 export { initWebSocket } from "./websocket";
 export { emailSchema, passwordSchema, uuidSchema } from "./openapi";
+export { eventBus } from "./eventBus";
+export type { DomainEventMap } from "./eventBus";
+export { instrumentPool, getQueryStats } from "./instrumentedPool";
+export {
+  runWithContext,
+  getContext,
+  tryGetContext,
+  enrichContext,
+} from "./requestContext";
+export type { RequestContext, QueryStats } from "./requestContext";

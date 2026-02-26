@@ -1,5 +1,6 @@
 import { getEnv } from "@/config";
-import { AppError, ErrorCode, audit, logger } from "@/utils";
+import { AppError, ErrorCode, logger } from "@/utils";
+import { eventBus } from "@/infra/eventBus";
 
 const CLEANUP_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
 
@@ -13,7 +14,7 @@ export class LoginAttemptTracker {
 
     if (entry.lockedUntil > Date.now()) {
       const minutesLeft = Math.ceil((entry.lockedUntil - Date.now()) / 60000);
-      audit({ action: "ACCOUNT_LOCKED", email, metadata: { minutesLeft } });
+      eventBus.emit("auth:account-locked-check", { email, minutesLeft });
       throw new AppError(
         429,
         `Account temporarily locked. Try again in ${minutesLeft} minute(s).`,
@@ -36,11 +37,11 @@ export class LoginAttemptTracker {
       entry.lockedUntil = Date.now() + LOGIN_LOCKOUT_MINUTES * 60 * 1000;
       this.attempts.set(email, entry);
 
-      audit({
-        action: "ACCOUNT_LOCKED",
+      eventBus.emit("auth:account-locked", {
         email,
         ip,
-        metadata: { attempts: entry.count, lockoutMinutes: LOGIN_LOCKOUT_MINUTES },
+        attempts: entry.count,
+        lockoutMinutes: LOGIN_LOCKOUT_MINUTES,
       });
 
       logger.warn(
@@ -52,16 +53,19 @@ export class LoginAttemptTracker {
 
     this.attempts.set(email, entry);
 
-    audit({
-      action: "USER_LOGIN_FAILED",
+    eventBus.emit("auth:login-failed", {
       email,
       ip,
-      metadata: { attemptNumber: entry.count },
+      attemptNumber: entry.count,
     });
   }
 
   clear(email: string): void {
     this.attempts.delete(email);
+  }
+
+  getSize(): number {
+    return this.attempts.size;
   }
 
   startCleanup(): void {
