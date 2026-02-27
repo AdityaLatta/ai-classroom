@@ -8,11 +8,16 @@ const courseRowSchema = z.object({
   title: z.string(),
   description: z.string(),
   instructor_id: z.string(),
+  status: z.string(),
+  thumbnail_url: z.string().nullable(),
+  category: z.string().nullable(),
+  difficulty: z.string().nullable(),
   created_at: z.coerce.date(),
   updated_at: z.coerce.date(),
 });
 
-const COURSE_COLUMNS = "id, title, description, instructor_id, created_at, updated_at";
+const COURSE_COLUMNS =
+  "id, title, description, instructor_id, status, thumbnail_url, category, difficulty, created_at, updated_at";
 const MAX_LIMIT = 100;
 
 export class CourseRepository implements ICourseRepository {
@@ -22,10 +27,18 @@ export class CourseRepository implements ICourseRepository {
   ): Promise<Course> {
     const db = getDb();
     const result = await db.query(
-      `INSERT INTO courses (title, description, instructor_id)
-       VALUES ($1, $2, $3)
+      `INSERT INTO courses (title, description, instructor_id, status, thumbnail_url, category, difficulty)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
        RETURNING ${COURSE_COLUMNS}`,
-      [dto.title, dto.description, instructorId],
+      [
+        dto.title,
+        dto.description,
+        instructorId,
+        dto.status ?? "DRAFT",
+        dto.thumbnailUrl ?? null,
+        dto.category ?? null,
+        dto.difficulty ?? null,
+      ],
     );
 
     return this.mapRow(result.rows[0]);
@@ -44,13 +57,25 @@ export class CourseRepository implements ICourseRepository {
 
   async findAll(options: ListCoursesOptions): Promise<PaginatedResult<Course>> {
     const db = getDb();
-    const { offset, cursor, filters } = options;
+    const { offset, cursor, filters, userId, userRole } = options;
     const limit = Math.min(options.limit, MAX_LIMIT);
 
     // Build WHERE conditions for the data query
     const conditions: string[] = [];
     const params: unknown[] = [];
     let paramIndex = 1;
+
+    // Visibility filtering based on role
+    if (userRole === "STUDENT") {
+      conditions.push(`status = 'PUBLISHED'`);
+    } else if (userRole === "INSTRUCTOR" && userId) {
+      conditions.push(
+        `(status = 'PUBLISHED' OR instructor_id = $${paramIndex})`,
+      );
+      params.push(userId);
+      paramIndex++;
+    }
+    // ADMIN sees all — no status filter
 
     if (cursor) {
       conditions.push(`created_at < $${paramIndex}`);
@@ -73,6 +98,24 @@ export class CourseRepository implements ICourseRepository {
       paramIndex++;
     }
 
+    if (filters?.status) {
+      conditions.push(`status = $${paramIndex}`);
+      params.push(filters.status);
+      paramIndex++;
+    }
+
+    if (filters?.category) {
+      conditions.push(`category = $${paramIndex}`);
+      params.push(filters.category);
+      paramIndex++;
+    }
+
+    if (filters?.difficulty) {
+      conditions.push(`difficulty = $${paramIndex}`);
+      params.push(filters.difficulty);
+      paramIndex++;
+    }
+
     const whereClause =
       conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
 
@@ -80,6 +123,17 @@ export class CourseRepository implements ICourseRepository {
     const countConditions: string[] = [];
     const countParams: unknown[] = [];
     let countParamIndex = 1;
+
+    // Same visibility filter for count
+    if (userRole === "STUDENT") {
+      countConditions.push(`status = 'PUBLISHED'`);
+    } else if (userRole === "INSTRUCTOR" && userId) {
+      countConditions.push(
+        `(status = 'PUBLISHED' OR instructor_id = $${countParamIndex})`,
+      );
+      countParams.push(userId);
+      countParamIndex++;
+    }
 
     if (filters?.search) {
       const escaped = escapeLikePattern(filters.search);
@@ -96,8 +150,28 @@ export class CourseRepository implements ICourseRepository {
       countParamIndex++;
     }
 
+    if (filters?.status) {
+      countConditions.push(`status = $${countParamIndex}`);
+      countParams.push(filters.status);
+      countParamIndex++;
+    }
+
+    if (filters?.category) {
+      countConditions.push(`category = $${countParamIndex}`);
+      countParams.push(filters.category);
+      countParamIndex++;
+    }
+
+    if (filters?.difficulty) {
+      countConditions.push(`difficulty = $${countParamIndex}`);
+      countParams.push(filters.difficulty);
+      countParamIndex++;
+    }
+
     const countWhere =
-      countConditions.length > 0 ? `WHERE ${countConditions.join(" AND ")}` : "";
+      countConditions.length > 0
+        ? `WHERE ${countConditions.join(" AND ")}`
+        : "";
     const countResult = await db.query(
       `SELECT COUNT(*) as count FROM courses ${countWhere}`,
       countParams,
@@ -117,9 +191,10 @@ export class CourseRepository implements ICourseRepository {
     const rows = hasMore ? result.rows.slice(0, limit) : result.rows;
     const data = rows.map((row) => this.mapRow(row));
 
-    const nextCursor = hasMore && data.length > 0
-      ? data[data.length - 1].createdAt.toISOString()
-      : undefined;
+    const nextCursor =
+      hasMore && data.length > 0
+        ? data[data.length - 1].createdAt.toISOString()
+        : undefined;
 
     return {
       data,
@@ -147,6 +222,22 @@ export class CourseRepository implements ICourseRepository {
       updates.push(`description = $${paramIndex++}`);
       values.push(dto.description);
     }
+    if (dto.status !== undefined) {
+      updates.push(`status = $${paramIndex++}`);
+      values.push(dto.status);
+    }
+    if (dto.thumbnailUrl !== undefined) {
+      updates.push(`thumbnail_url = $${paramIndex++}`);
+      values.push(dto.thumbnailUrl);
+    }
+    if (dto.category !== undefined) {
+      updates.push(`category = $${paramIndex++}`);
+      values.push(dto.category);
+    }
+    if (dto.difficulty !== undefined) {
+      updates.push(`difficulty = $${paramIndex++}`);
+      values.push(dto.difficulty);
+    }
 
     if (updates.length === 0) {
       return this.findById(courseId);
@@ -166,10 +257,9 @@ export class CourseRepository implements ICourseRepository {
 
   async delete(courseId: string): Promise<boolean> {
     const db = getDb();
-    const result = await db.query(
-      `DELETE FROM courses WHERE id = $1`,
-      [courseId],
-    );
+    const result = await db.query(`DELETE FROM courses WHERE id = $1`, [
+      courseId,
+    ]);
     return (result.rowCount ?? 0) > 0;
   }
 
@@ -181,6 +271,10 @@ export class CourseRepository implements ICourseRepository {
       title: parsed.title,
       description: parsed.description,
       instructorId: parsed.instructor_id,
+      status: parsed.status as Course["status"],
+      thumbnailUrl: parsed.thumbnail_url,
+      category: parsed.category,
+      difficulty: parsed.difficulty as Course["difficulty"],
       createdAt: parsed.created_at,
       updatedAt: parsed.updated_at,
     };

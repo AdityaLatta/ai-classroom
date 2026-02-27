@@ -22,6 +22,25 @@ export interface DomainEventMap {
   "course:created": { userId: string; courseId: string; title: string };
   "course:updated": { userId: string; courseId: string; title: string };
   "course:deleted": { userId: string; courseId: string };
+
+  // Module events
+  "module:created": { userId: string; courseId: string; moduleId: string; title: string };
+  "module:updated": { userId: string; courseId: string; moduleId: string; title: string };
+  "module:deleted": { userId: string; courseId: string; moduleId: string };
+  "module:reordered": { userId: string; courseId: string };
+
+  // Lesson events
+  "lesson:created": { userId: string; moduleId: string; lessonId: string; title: string };
+  "lesson:updated": { userId: string; moduleId: string; lessonId: string; title: string };
+  "lesson:deleted": { userId: string; moduleId: string; lessonId: string };
+
+  // Enrollment events
+  "enrollment:created": { userId: string; courseId: string; enrollmentId: string };
+  "enrollment:dropped": { userId: string; courseId: string };
+
+  // Progress events
+  "progress:updated": { userId: string; lessonId: string; status: string; progressPercent: number };
+  "progress:completed": { userId: string; lessonId: string; courseId: string };
 }
 
 type EventHandler<T> = (payload: T) => void | Promise<void>;

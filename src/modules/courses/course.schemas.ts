@@ -18,6 +18,26 @@ export const createCourseSchema = z
       .trim()
       .transform(stripHtml)
       .openapi({ description: "Course description", minLength: 10, maxLength: 5000 }),
+    status: z
+      .enum(["DRAFT", "PUBLISHED", "ARCHIVED"])
+      .optional()
+      .openapi({ description: "Course status" }),
+    thumbnailUrl: z
+      .string()
+      .url("Invalid thumbnail URL")
+      .optional()
+      .openapi({ description: "Course thumbnail URL" }),
+    category: z
+      .string()
+      .max(100, "Category must be at most 100 characters")
+      .trim()
+      .transform(stripHtml)
+      .optional()
+      .openapi({ description: "Course category" }),
+    difficulty: z
+      .enum(["BEGINNER", "INTERMEDIATE", "ADVANCED"])
+      .optional()
+      .openapi({ description: "Course difficulty level" }),
   })
   .openapi("CreateCourseInput");
 
@@ -62,6 +82,19 @@ export const listCoursesQuerySchema = z
       .datetime()
       .optional()
       .openapi({ description: "Cursor for pagination (ISO datetime of last item)" }),
+    status: z
+      .enum(["DRAFT", "PUBLISHED", "ARCHIVED"])
+      .optional()
+      .openapi({ description: "Filter by course status" }),
+    category: z
+      .string()
+      .max(100)
+      .optional()
+      .openapi({ description: "Filter by category" }),
+    difficulty: z
+      .enum(["BEGINNER", "INTERMEDIATE", "ADVANCED"])
+      .optional()
+      .openapi({ description: "Filter by difficulty" }),
   })
   .openapi("ListCoursesQuery");
 
@@ -83,6 +116,29 @@ export const updateCourseSchema = z
       .transform(stripHtml)
       .optional()
       .openapi({ description: "Course description", minLength: 10, maxLength: 5000 }),
+    status: z
+      .enum(["DRAFT", "PUBLISHED", "ARCHIVED"])
+      .optional()
+      .openapi({ description: "Course status" }),
+    thumbnailUrl: z
+      .string()
+      .url("Invalid thumbnail URL")
+      .nullable()
+      .optional()
+      .openapi({ description: "Course thumbnail URL" }),
+    category: z
+      .string()
+      .max(100, "Category must be at most 100 characters")
+      .trim()
+      .transform(stripHtml)
+      .nullable()
+      .optional()
+      .openapi({ description: "Course category" }),
+    difficulty: z
+      .enum(["BEGINNER", "INTERMEDIATE", "ADVANCED"])
+      .nullable()
+      .optional()
+      .openapi({ description: "Course difficulty level" }),
   })
   .openapi("UpdateCourseInput");
 

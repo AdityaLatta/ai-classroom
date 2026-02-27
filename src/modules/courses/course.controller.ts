@@ -31,7 +31,12 @@ export class CourseController {
       filters: {
         search: query.search,
         instructorId: query.instructorId,
+        status: query.status,
+        category: query.category,
+        difficulty: query.difficulty,
       },
+      userId: req.user!.id,
+      userRole: req.user!.role,
     });
 
     AppResponse.paginated(res, result.data, result.meta);
@@ -54,7 +59,11 @@ export class CourseController {
   @Get("/:id", requireAuth, validateParams(courseIdSchema))
   async getCourse(req: Request, res: Response) {
     const { id } = req.validated.params as { id: string };
-    const course = await this.service.getCourse(id);
+    const course = await this.service.getCourseWithVisibility(
+      id,
+      req.user!.id,
+      req.user!.role,
+    );
     AppResponse.ok(res, course);
   }
 
@@ -62,7 +71,7 @@ export class CourseController {
   async updateCourse(req: Request, res: Response) {
     const userId = req.user!.id;
     const { id } = req.validated.params as { id: string };
-    const course = await this.service.updateCourse(id, userId, req.body);
+    const course = await this.service.updateCourse(id, userId, req.body, req.user!.role);
 
     eventBus.emit("course:updated", {
       userId,
@@ -77,7 +86,7 @@ export class CourseController {
   async deleteCourse(req: Request, res: Response) {
     const userId = req.user!.id;
     const { id } = req.validated.params as { id: string };
-    await this.service.deleteCourse(id, userId);
+    await this.service.deleteCourse(id, userId, req.user!.role);
 
     eventBus.emit("course:deleted", {
       userId,

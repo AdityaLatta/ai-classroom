@@ -21,6 +21,27 @@ export class CourseService {
     return course;
   }
 
+  async getCourseWithVisibility(
+    courseId: string,
+    userId: string,
+    userRole: string,
+  ): Promise<Course> {
+    const course = await this.getCourse(courseId);
+
+    // ADMIN can see all courses
+    if (userRole === "ADMIN") return course;
+
+    // Instructors can see their own courses regardless of status
+    if (userRole === "INSTRUCTOR" && course.instructorId === userId) return course;
+
+    // Students (and other instructors) can only see PUBLISHED courses
+    if (course.status !== "PUBLISHED") {
+      throw new AppError(404, "Course not found", ErrorCode.COURSE_NOT_FOUND);
+    }
+
+    return course;
+  }
+
   async listCourses(
     options: ListCoursesOptions,
   ): Promise<PaginatedResult<Course>> {
@@ -31,12 +52,13 @@ export class CourseService {
     courseId: string,
     userId: string,
     dto: UpdateCourseDTO,
+    userRole?: string,
   ): Promise<Course> {
     const course = await this.repo.findById(courseId);
     if (!course) {
       throw new AppError(404, "Course not found", ErrorCode.COURSE_NOT_FOUND);
     }
-    if (course.instructorId !== userId) {
+    if (course.instructorId !== userId && userRole !== "ADMIN") {
       throw new AppError(403, "You can only update your own courses", ErrorCode.COURSE_FORBIDDEN);
     }
 
@@ -48,12 +70,12 @@ export class CourseService {
     return updated;
   }
 
-  async deleteCourse(courseId: string, userId: string): Promise<void> {
+  async deleteCourse(courseId: string, userId: string, userRole?: string): Promise<void> {
     const course = await this.repo.findById(courseId);
     if (!course) {
       throw new AppError(404, "Course not found", ErrorCode.COURSE_NOT_FOUND);
     }
-    if (course.instructorId !== userId) {
+    if (course.instructorId !== userId && userRole !== "ADMIN") {
       throw new AppError(403, "You can only delete your own courses", ErrorCode.COURSE_FORBIDDEN);
     }
 
