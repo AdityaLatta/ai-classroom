@@ -115,10 +115,10 @@ export function createApp(): { app: express.Express; modules: LoadedModule[] } {
 
     const modulesOk = Object.values(moduleResults).every((r) => r.ok);
     const allOk = dbOk && smtpOk && modulesOk;
-    const status = allOk ? "ok" : "degraded";
+    const status = allOk ? "ok" : dbOk ? "degraded" : "error";
 
     res
-      .status(allOk ? 200 : 503)
+      .status(dbOk ? 200 : 503)
       .json({
         status,
         timestamp: new Date().toISOString(),

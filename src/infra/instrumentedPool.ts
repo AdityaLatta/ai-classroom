@@ -2,7 +2,7 @@ import { Pool, PoolClient, QueryConfig, QueryResult, QueryResultRow } from "pg";
 import { logger } from "@/utils/logger";
 import { tryGetContext, QueryStats } from "./requestContext";
 
-const SLOW_QUERY_THRESHOLD_MS = 100;
+const SLOW_QUERY_THRESHOLD_MS = 500;
 
 /**
  * Monkey-patches pool.query to add timing, slow-query logging,
