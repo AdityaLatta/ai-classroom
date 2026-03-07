@@ -249,7 +249,7 @@ export class AuthController {
     res.cookie(REFRESH_TOKEN_COOKIE, refreshToken, {
       httpOnly: true,
       secure: COOKIE_SECURE || NODE_ENV === "production",
-      sameSite: "strict",
+      sameSite: NODE_ENV === "production" ? "none" : "strict",
       maxAge: REFRESH_TOKEN_EXPIRY_DAYS * 24 * 60 * 60 * 1000,
       path: COOKIE_PATH,
       ...(COOKIE_DOMAIN ? { domain: COOKIE_DOMAIN } : {}),
